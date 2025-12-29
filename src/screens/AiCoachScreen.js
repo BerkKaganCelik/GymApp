@@ -14,7 +14,13 @@ import {
 } from 'react-native';
 import { GROQ_API_KEY } from '@env';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const AiCoachScreen = ({ navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [messages, setMessages] = useState([
     {
       id: '1',
@@ -101,12 +107,26 @@ const AiCoachScreen = ({ navigation }) => {
       <View
         style={[
           styles.bubble,
-          isUser ? styles.userBubble : styles.aiBubble,
-          { alignSelf: isUser ? 'flex-end' : 'flex-start' },
+          isUser
+            ? {
+                backgroundColor: theme.primary, // Kullanıcı mesajı (Tema Rengi)
+                borderBottomRightRadius: 2,
+                alignSelf: 'flex-end',
+              }
+            : {
+                backgroundColor: theme.card, // AI mesajı (Kart Rengi)
+                borderBottomLeftRadius: 2,
+                alignSelf: 'flex-start',
+              },
         ]}
       >
         <Text
-          style={[styles.msgText, isUser ? styles.userText : styles.aiText]}
+          style={[
+            styles.msgText,
+            isUser
+              ? { color: 'white' } // Kullanıcı yazısı her zaman beyaz (Primary üstünde)
+              : { color: theme.text }, // AI yazısı temaya uygun
+          ]}
         >
           {item.text}
         </Text>
@@ -115,20 +135,30 @@ const AiCoachScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-        >
-          <Text style={{ fontSize: 20, color: 'white' }}>✕</Text>
-        </TouchableOpacity>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>AI KOÇ 🤖</Text>
-          <Text style={styles.headerSub}>Anlık Cevap ⚡</Text>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        {/* X Butonu Kaldırıldı çünkü artık Alt Menüdeyiz */}
+        <View style={{ width: 10 }} />
+
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
+            AI KOÇ 🤖
+          </Text>
+          <Text style={[styles.headerSub, { color: theme.primary }]}>
+            Anlık Cevap ⚡
+          </Text>
         </View>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 10 }} />
       </View>
 
       <FlatList
@@ -144,11 +174,19 @@ const AiCoachScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={10}
       >
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              { backgroundColor: theme.inputBg, color: theme.text },
+            ]}
             placeholder="Koça bir soru sor..."
-            placeholderTextColor="#888"
+            placeholderTextColor={theme.subText}
             value={inputText}
             onChangeText={setInputText}
             multiline
@@ -156,7 +194,7 @@ const AiCoachScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.sendBtn,
-              { backgroundColor: inputText ? '#3498DB' : '#444' },
+              { backgroundColor: inputText ? theme.primary : theme.inputBg }, // Buton rengi
             ]}
             onPress={sendMessage}
             disabled={!inputText || loading}
@@ -164,7 +202,14 @@ const AiCoachScreen = ({ navigation }) => {
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={{ fontSize: 20, color: 'white' }}>➤</Text>
+              <Text
+                style={{
+                  fontSize: 20,
+                  color: inputText ? 'white' : theme.subText,
+                }}
+              >
+                ➤
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -174,37 +219,26 @@ const AiCoachScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 15,
-    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderColor: '#333',
   },
-  backBtn: { padding: 10 },
-  headerTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  headerSub: { color: '#4CD964', fontSize: 12 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  headerSub: { fontSize: 12 },
   bubble: { maxWidth: '80%', padding: 12, borderRadius: 15, marginBottom: 10 },
-  userBubble: { backgroundColor: '#3498DB', borderBottomRightRadius: 2 },
-  aiBubble: { backgroundColor: '#2C2C2C', borderBottomLeftRadius: 2 },
   msgText: { fontSize: 15, lineHeight: 22 },
-  userText: { color: 'white' },
-  aiText: { color: '#DDD' },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    backgroundColor: '#1E1E1E',
     borderTopWidth: 1,
-    borderColor: '#333',
   },
   input: {
     flex: 1,
-    backgroundColor: '#2C2C2C',
-    color: 'white',
     borderRadius: 25,
     paddingHorizontal: 20,
     paddingVertical: 10,

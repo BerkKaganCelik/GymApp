@@ -13,7 +13,13 @@ import {
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const ShopScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
@@ -49,39 +55,37 @@ const ShopScreen = () => {
   // ✨ YENİ: TRANSACTION İLE GÜVENLİ SATIN ALMA
   const buyProduct = item => {
     Alert.alert(
-      'Sipariş Onayı',
-      `${item.name} (${item.price} TL) sipariş etmek istiyor musunuz?`,
+      t.orderConfirm || 'Sipariş Onayı',
+      `${item.name} (${item.price} TL) ${
+        t.orderConfirmMsg || 'sipariş etmek istiyor musunuz?'
+      }`,
       [
-        { text: 'Vazgeç', style: 'cancel' },
+        { text: t.cancel || 'Vazgeç', style: 'cancel' },
         {
-          text: 'Sipariş Ver',
+          text: t.order || 'Sipariş Ver',
           onPress: async () => {
-            setLoading(true); // İşlem süresince spinner göster
+            setLoading(true);
             try {
               await firestore().runTransaction(async transaction => {
-                // 1. Ürün referansını al ve güncel veriyi oku (Read)
                 const productRef = firestore()
                   .collection('products')
                   .doc(item.key);
                 const productSnap = await transaction.get(productRef);
 
                 if (!productSnap.exists) {
-                  throw 'Ürün bulunamadı!';
+                  throw t.productNotFound || 'Ürün bulunamadı!';
                 }
 
                 const currentStock = productSnap.data().stock;
 
-                // 2. Stok Kontrolü
                 if (currentStock <= 0) {
-                  throw 'Üzgünüz, stok tükenmiş! 😔';
+                  throw t.outOfStock || 'Üzgünüz, stok tükenmiş! 😔';
                 }
 
-                // 3. Stok Güncelle (Write 1)
                 transaction.update(productRef, {
                   stock: currentStock - 1,
                 });
 
-                // 4. Sipariş Oluştur (Write 2)
                 const orderRef = firestore().collection('orders').doc();
                 transaction.set(orderRef, {
                   productName: item.name,
@@ -95,13 +99,13 @@ const ShopScreen = () => {
               });
 
               Alert.alert(
-                'Harika! 🎉',
-                'Siparişiniz alındı ve stoktan düşüldü. Resepsiyona iletildi.',
+                t.success || 'Harika! 🎉',
+                t.orderSuccess ||
+                  'Siparişiniz alındı ve stoktan düşüldü. Resepsiyona iletildi.',
               );
             } catch (error) {
-              // Hata mesajını (bizim fırlattığımız veya sistem hatası) göster
               Alert.alert(
-                'İşlem Başarısız',
+                t.error || 'İşlem Başarısız',
                 error.toString().replace('Error: ', ''),
               );
             } finally {
@@ -115,15 +119,21 @@ const ShopScreen = () => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#FF8C00" size="large" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <Text style={styles.header}>GYM STORE ⚡</Text>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+      {/* Başlık Dinamik */}
+      <Text style={[styles.header, { color: theme.text }]}>
+        {t.shop || 'GYM STORE'} ⚡
+      </Text>
 
       <FlatList
         data={products}
@@ -131,42 +141,59 @@ const ShopScreen = () => {
         numColumns={2}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.card, item.stock <= 0 && { opacity: 0.5 }]} // Stok yoksa soluk göster
+            style={[
+              styles.card,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              item.stock <= 0 && { opacity: 0.5 },
+            ]}
             onPress={() =>
               item.stock > 0
                 ? buyProduct(item)
-                : Alert.alert('Stok Yok', 'Bu ürün tükenmiş.')
+                : Alert.alert(
+                    t.outOfStock || 'Stok Yok',
+                    t.productDepleted || 'Bu ürün tükenmiş.',
+                  )
             }
           >
             <Image source={{ uri: item.image }} style={styles.image} />
-            <Text style={styles.name}>{item.name}</Text>
+            <Text style={[styles.name, { color: theme.text }]}>
+              {item.name}
+            </Text>
 
             {/* Stok Durumu */}
             <Text
               style={[
                 styles.stockText,
-                { color: item.stock < 5 ? '#FF3B30' : '#4CD964' },
+                { color: item.stock < 5 ? theme.danger : theme.success },
               ]}
             >
-              {item.stock > 0 ? `Stok: ${item.stock}` : 'TÜKENDİ'}
+              {item.stock > 0
+                ? `${t.stock || 'Stok'}: ${item.stock}`
+                : t.soldOut || 'TÜKENDİ'}
             </Text>
 
-            <Text style={styles.price}>{item.price} TL</Text>
+            <Text style={[styles.price, { color: theme.primary }]}>
+              {item.price} TL
+            </Text>
 
             <View
               style={[
                 styles.buyBtn,
-                item.stock <= 0 && { backgroundColor: '#555' },
+                {
+                  backgroundColor: item.stock <= 0 ? theme.subText : '#007AFF',
+                },
               ]}
             >
               <Text style={styles.buyText}>
-                {item.stock > 0 ? 'SATIN AL' : 'YOK'}
+                {item.stock > 0 ? t.buy || 'SATIN AL' : t.none || 'YOK'}
               </Text>
             </View>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>Mağazada ürün yok.</Text>
+          <Text style={[styles.empty, { color: theme.subText }]}>
+            {t.noProducts || 'Mağazada ürün yok.'}
+          </Text>
         }
       />
     </View>
@@ -174,45 +201,40 @@ const ShopScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 10 },
-  center: { flex: 1, backgroundColor: '#121212', justifyContent: 'center' },
+  container: { flex: 1, padding: 10 },
+  center: { flex: 1, justifyContent: 'center' },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
     marginBottom: 20,
     marginTop: 10,
     textAlign: 'center',
   },
   card: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
     margin: 8,
     padding: 15,
     borderRadius: 15,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
     justifyContent: 'space-between',
   },
   image: { width: 80, height: 80, marginBottom: 10, borderRadius: 10 },
   name: {
-    color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
     textAlign: 'center',
   },
   stockText: { fontSize: 10, marginVertical: 2, fontWeight: 'bold' },
-  price: { color: '#FF8C00', fontSize: 14, marginVertical: 5 },
+  price: { fontSize: 14, marginVertical: 5 },
   buyBtn: {
-    backgroundColor: '#007AFF',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
     marginTop: 5,
   },
   buyText: { color: 'white', fontWeight: 'bold', fontSize: 10 },
-  empty: { color: '#666', textAlign: 'center', marginTop: 50 },
+  empty: { textAlign: 'center', marginTop: 50 },
 });
 
 export default ShopScreen;

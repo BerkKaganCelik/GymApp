@@ -9,7 +9,13 @@ import {
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const EntryLogsScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,36 +47,58 @@ const EntryLogsScreen = () => {
 
   if (loading)
     return (
-      <View style={styles.container}>
-        <ActivityIndicator color="#FF8C00" size="large" />
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+
       <View style={styles.header}>
-        <Text style={styles.title}>GİRİŞ GEÇMİŞİ 🕒</Text>
-        <Text style={styles.subtitle}>Son Hareketler</Text>
+        {/* Başlık Dinamik */}
+        <Text style={[styles.title, { color: theme.text }]}>
+          {t.entryLogs || 'GİRİŞ GEÇMİŞİ'} 🕒
+        </Text>
+        <Text style={[styles.subtitle, { color: theme.subText }]}>
+          {t.entryLogsSub || 'Son Hareketler'}
+        </Text>
       </View>
 
       <FlatList
         data={logs}
         contentContainerStyle={{ paddingBottom: 20 }}
         renderItem={({ item }) => (
-          <View style={styles.logCard}>
+          <View
+            style={[
+              styles.logCard,
+              { backgroundColor: theme.card, borderLeftColor: theme.success },
+            ]}
+          >
             <View style={styles.iconBox}>
               <Text style={{ fontSize: 20 }}>✅</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{item.fullName}</Text>
-              <Text style={styles.email}>{item.email}</Text>
+              <Text style={[styles.name, { color: theme.text }]}>
+                {item.fullName}
+              </Text>
+              <Text style={[styles.email, { color: theme.subText }]}>
+                {item.email}
+              </Text>
             </View>
-            <Text style={styles.date}>{formatDate(item.timestamp)}</Text>
+            <Text style={[styles.date, { color: theme.primary }]}>
+              {formatDate(item.timestamp)}
+            </Text>
           </View>
         )}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>Henüz giriş kaydı yok.</Text>
+          <Text style={[styles.emptyText, { color: theme.subText }]}>
+            Henüz giriş kaydı yok.
+          </Text>
         }
       />
     </View>
@@ -78,30 +106,27 @@ const EntryLogsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   header: { marginBottom: 20, marginTop: 10 },
-  title: { fontSize: 24, fontWeight: 'bold', color: 'white' },
-  subtitle: { color: '#666', marginTop: 5 },
+  title: { fontSize: 24, fontWeight: 'bold' },
+  subtitle: { marginTop: 5 },
   logCard: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     marginBottom: 10,
     borderRadius: 12,
     alignItems: 'center',
     borderLeftWidth: 3,
-    borderLeftColor: '#4CD964',
   },
   iconBox: { marginRight: 15, opacity: 0.8 },
-  name: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  email: { color: '#888', fontSize: 12 },
+  name: { fontWeight: 'bold', fontSize: 16 },
+  email: { fontSize: 12 },
   date: {
-    color: '#FF8C00',
     fontSize: 12,
     fontWeight: 'bold',
     alignSelf: 'flex-start',
   },
-  emptyText: { color: '#666', textAlign: 'center', marginTop: 50 },
+  emptyText: { textAlign: 'center', marginTop: 50 },
 });
 
 export default EntryLogsScreen;

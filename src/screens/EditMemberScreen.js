@@ -18,9 +18,11 @@ import {
 import firestore from '@react-native-firebase/firestore';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-// 📚 GELİŞMİŞ EGZERSİZ VERİTABANI
 const EXERCISE_DB = [
   // GÖĞÜS
   { id: '101', name: 'Barbell Bench Press', category: 'Göğüs' },
@@ -52,12 +54,14 @@ const EXERCISE_DB = [
 ];
 
 const EditMemberScreen = ({ route, navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const { userId } = route.params;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('program'); // Başlangıçta Program sekmesi açık olsun
+  const [activeTab, setActiveTab] = useState('program');
 
-  // Form Verileri
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -65,11 +69,9 @@ const EditMemberScreen = ({ route, navigation }) => {
   const [isActive, setIsActive] = useState(true);
   const [expiryDate, setExpiryDate] = useState(new Date());
 
-  // Program Verileri
   const [programList, setProgramList] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // Modal İçi Seçimler
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tümü');
   const [sets, setSets] = useState('3');
@@ -103,7 +105,6 @@ const EditMemberScreen = ({ route, navigation }) => {
     return () => fetchMember();
   }, [userId]);
 
-  // --- HESAPLAMALAR ---
   const daysRemaining = Math.ceil(
     (expiryDate - new Date()) / (1000 * 60 * 60 * 24),
   );
@@ -131,7 +132,6 @@ const EditMemberScreen = ({ route, navigation }) => {
     });
   }, [searchQuery, selectedCategory]);
 
-  // --- FONKSİYONLAR ---
   const handleCall = () => phone && Linking.openURL(`tel:${phone}`);
   const handleWhatsApp = () =>
     phone && Linking.openURL(`whatsapp://send?phone=${phone}`);
@@ -217,32 +217,42 @@ const EditMemberScreen = ({ route, navigation }) => {
 
   if (loading)
     return (
-      <ActivityIndicator style={styles.center} size="large" color="#FF8C00" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
     );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
       {/* 1. HEADER (KOKPİT) */}
-      <View style={styles.header}>
-        <View style={styles.avatarContainer}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <View
+          style={[
+            styles.avatarContainer,
+            { backgroundColor: theme.inputBg, borderColor: theme.border },
+          ]}
+        >
           <Text style={{ fontSize: 28 }}>👤</Text>
         </View>
         <View style={{ flex: 1, marginLeft: 15 }}>
-          <Text style={styles.headerName}>{name}</Text>
+          <Text style={[styles.headerName, { color: theme.text }]}>{name}</Text>
           <View
             style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
           >
             <View
               style={[
                 styles.statusIndicator,
-                { backgroundColor: isActive ? '#4CD964' : '#FF3B30' },
+                { backgroundColor: isActive ? theme.success : theme.danger },
               ]}
             />
             <Text
               style={{
-                color: '#888',
+                color: theme.subText,
                 fontSize: 12,
                 marginLeft: 6,
                 fontWeight: 'bold',
@@ -269,15 +279,21 @@ const EditMemberScreen = ({ route, navigation }) => {
       </View>
 
       {/* 2. TABS */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: theme.card }]}>
         {['program', 'membership', 'profile'].map(t => (
           <TouchableOpacity
             key={t}
             onPress={() => setActiveTab(t)}
-            style={[styles.tabBtn, activeTab === t && styles.tabBtnActive]}
+            style={[
+              styles.tabBtn,
+              activeTab === t && { backgroundColor: theme.primary },
+            ]}
           >
             <Text
-              style={[styles.tabText, activeTab === t && { color: 'black' }]}
+              style={[
+                styles.tabText,
+                { color: activeTab === t ? 'white' : theme.subText },
+              ]}
             >
               {t === 'profile'
                 ? 'PROFİL'
@@ -293,43 +309,53 @@ const EditMemberScreen = ({ route, navigation }) => {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* --- PROGRAM SEKME (ÖNCELİKLİ) --- */}
+        {/* --- PROGRAM SEKME --- */}
         {activeTab === 'program' && (
           <View>
             <TouchableOpacity
               onPress={() => setModalVisible(true)}
-              style={styles.addExerciseBtn}
+              style={[
+                styles.addExerciseBtn,
+                { backgroundColor: theme.primary },
+              ]}
             >
               <Text
-                style={{ color: 'black', fontWeight: 'bold', fontSize: 14 }}
+                style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}
               >
                 + YENİ HAREKET EKLE
               </Text>
             </TouchableOpacity>
 
             {programList.length === 0 ? (
-              <View style={styles.emptyBox}>
+              <View style={[styles.emptyBox, { borderColor: theme.border }]}>
                 <Text style={{ fontSize: 40, opacity: 0.5 }}>🏋️</Text>
-                <Text style={{ color: '#666', marginTop: 10 }}>
+                <Text style={{ color: theme.subText, marginTop: 10 }}>
                   Antrenman programı boş.
                 </Text>
               </View>
             ) : (
               programList.map((item, index) => (
-                <View key={index} style={styles.programCard}>
+                <View
+                  key={index}
+                  style={[styles.programCard, { backgroundColor: theme.card }]}
+                >
                   <View style={styles.programCardLeft}>
-                    <Text style={styles.programDayBadge}>
+                    <Text
+                      style={[styles.programDayBadge, { color: theme.primary }]}
+                    >
                       {item.day.toUpperCase()}
                     </Text>
-                    <Text style={styles.programExName}>{item.name}</Text>
-                    <Text style={{ color: '#888', fontSize: 11 }}>
+                    <Text style={[styles.programExName, { color: theme.text }]}>
+                      {item.name}
+                    </Text>
+                    <Text style={{ color: theme.subText, fontSize: 11 }}>
                       {item.category}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'center', marginRight: 15 }}>
                     <Text
                       style={{
-                        color: 'white',
+                        color: theme.text,
                         fontWeight: 'bold',
                         fontSize: 16,
                       }}
@@ -339,11 +365,14 @@ const EditMemberScreen = ({ route, navigation }) => {
                   </View>
                   <TouchableOpacity
                     onPress={() => removeExercise(item.id)}
-                    style={styles.deleteBtn}
+                    style={[
+                      styles.deleteBtn,
+                      { backgroundColor: theme.inputBg },
+                    ]}
                   >
                     <Text
                       style={{
-                        color: 'white',
+                        color: theme.danger,
                         fontWeight: 'bold',
                         fontSize: 10,
                       }}
@@ -363,29 +392,40 @@ const EditMemberScreen = ({ route, navigation }) => {
             <View
               style={[
                 styles.membershipCard,
-                isExpired && { borderColor: '#FF3B30', borderWidth: 1 },
+                { backgroundColor: theme.card },
+                isExpired && { borderColor: theme.danger, borderWidth: 1 },
               ]}
             >
-              <Text style={styles.cardTitle}>KALAN GÜN SAYISI</Text>
+              <Text style={[styles.cardTitle, { color: theme.subText }]}>
+                KALAN GÜN SAYISI
+              </Text>
               <Text
-                style={[styles.bigNumber, isExpired && { color: '#FF3B30' }]}
+                style={[
+                  styles.bigNumber,
+                  { color: theme.text },
+                  isExpired && { color: theme.danger },
+                ]}
               >
                 {daysRemaining > 0 ? daysRemaining : 0}
               </Text>
-              <Text style={{ color: '#666', fontSize: 12, marginBottom: 15 }}>
+              <Text
+                style={{ color: theme.subText, fontSize: 12, marginBottom: 15 }}
+              >
                 Bitiş: {expiryDate.toLocaleDateString('tr-TR')}
               </Text>
               <TouchableOpacity
                 onPress={() => setDatePickerVisibility(true)}
-                style={styles.outlineBtn}
+                style={[styles.outlineBtn, { borderColor: theme.text }]}
               >
-                <Text style={{ color: 'white', fontSize: 12 }}>
+                <Text style={{ color: theme.text, fontSize: 12 }}>
                   TARİHİ EL İLE DÜZENLE
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionHeader}>HIZLI UZATMA</Text>
+            <Text style={[styles.sectionHeader, { color: theme.primary }]}>
+              HIZLI UZATMA
+            </Text>
             <View
               style={{
                 flexDirection: 'row',
@@ -397,9 +437,14 @@ const EditMemberScreen = ({ route, navigation }) => {
                 <TouchableOpacity
                   key={m}
                   onPress={() => extendMembership(m)}
-                  style={styles.monthBtn}
+                  style={[
+                    styles.monthBtn,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                  ]}
                 >
-                  <Text style={styles.monthBtnText}>+{m} AY</Text>
+                  <Text style={[styles.monthBtnText, { color: theme.text }]}>
+                    +{m} AY
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -408,12 +453,12 @@ const EditMemberScreen = ({ route, navigation }) => {
               onPress={toggleStatus}
               style={[
                 styles.actionBtn,
-                { backgroundColor: isActive ? '#333' : '#4CD964' },
+                { backgroundColor: isActive ? theme.inputBg : theme.success },
               ]}
             >
               <Text
                 style={{
-                  color: isActive ? '#FF3B30' : 'black',
+                  color: isActive ? theme.danger : 'white',
                   fontWeight: 'bold',
                 }}
               >
@@ -426,39 +471,59 @@ const EditMemberScreen = ({ route, navigation }) => {
         {/* --- PROFİL SEKME --- */}
         {activeTab === 'profile' && (
           <View>
-            <Text style={styles.sectionHeader}>İLETİŞİM BİLGİLERİ</Text>
-            <View style={styles.formSection}>
-              <Text style={styles.label}>Ad Soyad</Text>
+            <Text style={[styles.sectionHeader, { color: theme.primary }]}>
+              İLETİŞİM BİLGİLERİ
+            </Text>
+            <View style={[styles.formSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.label, { color: theme.primary }]}>
+                Ad Soyad
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.inputBg, color: theme.text },
+                ]}
                 value={name}
                 onChangeText={setName}
               />
 
-              <Text style={styles.label}>Telefon</Text>
+              <Text style={[styles.label, { color: theme.primary }]}>
+                Telefon
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.inputBg, color: theme.text },
+                ]}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
               />
 
-              <Text style={styles.label}>E-Posta (Salt Okunur)</Text>
+              <Text style={[styles.label, { color: theme.primary }]}>
+                E-Posta (Salt Okunur)
+              </Text>
               <TextInput
                 style={[
                   styles.input,
-                  { backgroundColor: '#222', color: '#666' },
+                  { backgroundColor: theme.bg, color: theme.subText },
                 ]}
                 value={email}
                 editable={false}
               />
             </View>
 
-            <Text style={styles.sectionHeader}>SAĞLIK & NOTLAR</Text>
+            <Text style={[styles.sectionHeader, { color: theme.primary }]}>
+              SAĞLIK & NOTLAR
+            </Text>
             <View
               style={[
                 styles.formSection,
-                { borderLeftWidth: 3, borderLeftColor: '#FF3B30' },
+                {
+                  backgroundColor: theme.card,
+                  borderLeftWidth: 3,
+                  borderLeftColor: theme.danger,
+                },
               ]}
             >
               <TextInput
@@ -469,12 +534,13 @@ const EditMemberScreen = ({ route, navigation }) => {
                     backgroundColor: 'transparent',
                     borderWidth: 0,
                     textAlignVertical: 'top',
+                    color: theme.text,
                   },
                 ]}
                 value={healthNotes}
                 onChangeText={setHealthNotes}
                 placeholder="Özel sağlık durumu, sakatlık veya notlar..."
-                placeholderTextColor="#666"
+                placeholderTextColor={theme.subText}
                 multiline
               />
             </View>
@@ -484,12 +550,12 @@ const EditMemberScreen = ({ route, navigation }) => {
 
       {/* FLOAT SAVE BUTTON */}
       <TouchableOpacity
-        style={styles.floatingSave}
+        style={[styles.floatingSave, { backgroundColor: theme.primary }]}
         onPress={handleSave}
         disabled={saving}
       >
         {saving ? (
-          <ActivityIndicator color="black" />
+          <ActivityIndicator color="white" />
         ) : (
           <Text style={styles.saveText}>DEĞİŞİKLİKLERİ KAYDET ✅</Text>
         )}
@@ -509,8 +575,15 @@ const EditMemberScreen = ({ route, navigation }) => {
       {/* GELİŞMİŞ HAREKET EKLEME MODALI */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalBg}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>HAREKET EKLE</Text>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              HAREKET EKLE
+            </Text>
 
             {/* Gün Seçimi */}
             <View
@@ -535,13 +608,14 @@ const EditMemberScreen = ({ route, navigation }) => {
                   onPress={() => setDay(d)}
                   style={[
                     styles.dayChip,
-                    day === d && { backgroundColor: '#FF8C00' },
+                    { backgroundColor: theme.inputBg },
+                    day === d && { backgroundColor: theme.primary },
                   ]}
                 >
                   <Text
                     style={{
                       fontSize: 10,
-                      color: day === d ? 'black' : 'white',
+                      color: day === d ? 'white' : theme.text,
                       fontWeight: 'bold',
                     }}
                   >
@@ -553,9 +627,12 @@ const EditMemberScreen = ({ route, navigation }) => {
 
             {/* Arama ve Filtre */}
             <TextInput
-              style={styles.searchBar}
+              style={[
+                styles.searchBar,
+                { backgroundColor: theme.inputBg, color: theme.text },
+              ]}
               placeholder="Hareket ara..."
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.subText}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -567,6 +644,10 @@ const EditMemberScreen = ({ route, navigation }) => {
                     onPress={() => setSelectedCategory(cat)}
                     style={[
                       styles.catChip,
+                      {
+                        backgroundColor: theme.inputBg,
+                        borderColor: theme.border,
+                      },
                       selectedCategory === cat && {
                         backgroundColor: '#007AFF',
                         borderColor: '#007AFF',
@@ -591,13 +672,14 @@ const EditMemberScreen = ({ route, navigation }) => {
             <FlatList
               data={filteredExercises}
               keyExtractor={i => i.id}
-              style={styles.dbList}
+              style={[styles.dbList, { backgroundColor: theme.bg }]}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
                     styles.dbItem,
+                    { borderColor: theme.border },
                     selectedDbExercise?.id === item.id && {
-                      backgroundColor: '#333',
+                      backgroundColor: theme.inputBg,
                     },
                   ]}
                   onPress={() => setSelectedDbExercise(item)}
@@ -606,14 +688,14 @@ const EditMemberScreen = ({ route, navigation }) => {
                     style={{
                       color:
                         selectedDbExercise?.id === item.id
-                          ? '#FF8C00'
-                          : 'white',
+                          ? theme.primary
+                          : theme.text,
                       fontWeight: 'bold',
                     }}
                   >
                     {item.name}
                   </Text>
-                  <Text style={{ color: '#666', fontSize: 10 }}>
+                  <Text style={{ color: theme.subText, fontSize: 10 }}>
                     {item.category}
                   </Text>
                 </TouchableOpacity>
@@ -630,22 +712,40 @@ const EditMemberScreen = ({ route, navigation }) => {
               }}
             >
               <View style={{ width: '48%' }}>
-                <Text style={{ color: '#888', fontSize: 10, marginBottom: 4 }}>
+                <Text
+                  style={{
+                    color: theme.subText,
+                    fontSize: 10,
+                    marginBottom: 4,
+                  }}
+                >
                   SET
                 </Text>
                 <TextInput
-                  style={styles.smallInput}
+                  style={[
+                    styles.smallInput,
+                    { backgroundColor: theme.inputBg, color: theme.text },
+                  ]}
                   value={sets}
                   onChangeText={setSets}
                   keyboardType="numeric"
                 />
               </View>
               <View style={{ width: '48%' }}>
-                <Text style={{ color: '#888', fontSize: 10, marginBottom: 4 }}>
+                <Text
+                  style={{
+                    color: theme.subText,
+                    fontSize: 10,
+                    marginBottom: 4,
+                  }}
+                >
                   TEKRAR
                 </Text>
                 <TextInput
-                  style={styles.smallInput}
+                  style={[
+                    styles.smallInput,
+                    { backgroundColor: theme.inputBg, color: theme.text },
+                  ]}
                   value={reps}
                   onChangeText={setReps}
                   keyboardType="numeric"
@@ -655,7 +755,7 @@ const EditMemberScreen = ({ route, navigation }) => {
 
             <TouchableOpacity
               onPress={addExerciseToProgram}
-              style={styles.modalAddBtn}
+              style={[styles.modalAddBtn, { backgroundColor: theme.primary }]}
             >
               <Text style={styles.btnText}>LİSTEYE EKLE</Text>
             </TouchableOpacity>
@@ -663,7 +763,7 @@ const EditMemberScreen = ({ route, navigation }) => {
               onPress={() => setModalVisible(false)}
               style={{ marginTop: 15 }}
             >
-              <Text style={{ color: '#666' }}>Vazgeç</Text>
+              <Text style={{ color: theme.subText }}>Vazgeç</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -673,34 +773,28 @@ const EditMemberScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#121212',
   },
-
-  // HEADER
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
   },
   avatarContainer: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#1E1E1E',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
   },
-  headerName: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  headerName: { fontSize: 20, fontWeight: 'bold' },
   statusIndicator: { width: 8, height: 8, borderRadius: 4 },
   iconBtn: {
     width: 40,
@@ -710,12 +804,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // TABS
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 20,
-    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 4,
   },
@@ -725,12 +816,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  tabBtnActive: { backgroundColor: '#FF8C00' },
-  tabText: { color: '#666', fontWeight: 'bold', fontSize: 12 },
-
-  // PROGRAM CARD
+  tabText: { fontWeight: 'bold', fontSize: 12 },
   addExerciseBtn: {
-    backgroundColor: '#007AFF',
     padding: 15,
     borderRadius: 12,
     alignItems: 'center',
@@ -738,7 +825,6 @@ const styles = StyleSheet.create({
   },
   programCard: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
     padding: 12,
     borderRadius: 12,
     marginBottom: 10,
@@ -747,14 +833,12 @@ const styles = StyleSheet.create({
   },
   programCardLeft: { flex: 1 },
   programDayBadge: {
-    color: '#FF8C00',
     fontSize: 10,
     fontWeight: '900',
     marginBottom: 2,
   },
-  programExName: { color: 'white', fontSize: 15, fontWeight: 'bold' },
+  programExName: { fontSize: 15, fontWeight: 'bold' },
   deleteBtn: {
-    backgroundColor: '#333',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -765,39 +849,31 @@ const styles = StyleSheet.create({
     padding: 20,
     borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: '#333',
     borderRadius: 15,
   },
-
-  // MEMBERSHIP CARD
   membershipCard: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 15,
     padding: 25,
     alignItems: 'center',
     marginBottom: 20,
   },
   cardTitle: {
-    color: '#888',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1,
   },
   bigNumber: {
-    color: 'white',
     fontSize: 48,
     fontWeight: 'bold',
     marginVertical: 5,
   },
   outlineBtn: {
     borderWidth: 1,
-    borderColor: '#666',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
   },
   sectionHeader: {
-    color: '#FF8C00',
     fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 10,
@@ -805,60 +881,47 @@ const styles = StyleSheet.create({
   },
   monthBtn: {
     flex: 1,
-    backgroundColor: '#222',
     marginHorizontal: 4,
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
   },
-  monthBtnText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  monthBtnText: { fontWeight: 'bold', fontSize: 12 },
   actionBtn: {
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
   },
-
-  // PROFILE FORM
   formSection: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 15,
     marginBottom: 10,
   },
   label: {
-    color: '#FF8C00',
     fontSize: 10,
     marginBottom: 5,
     fontWeight: 'bold',
   },
   input: {
-    backgroundColor: '#252525',
-    color: 'white',
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
     fontSize: 14,
   },
-
-  // FLOATING BUTTON
   floatingSave: {
     position: 'absolute',
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: '#FF8C00',
     padding: 18,
     borderRadius: 15,
     alignItems: 'center',
     elevation: 10,
     zIndex: 100,
   },
-  saveText: { color: 'black', fontWeight: 'bold', fontSize: 16 },
-
-  // MODAL STYLES
+  saveText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',
@@ -867,16 +930,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#1E1E1E',
     width: '100%',
     padding: 20,
     borderRadius: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
   },
   modalTitle: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
@@ -885,61 +945,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#333',
     marginRight: 5,
     marginBottom: 5,
   },
   searchBar: {
-    backgroundColor: '#252525',
     width: '100%',
     padding: 10,
     borderRadius: 8,
-    color: 'white',
     marginBottom: 10,
   },
   catChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
-    backgroundColor: '#333',
     marginRight: 5,
     borderWidth: 1,
-    borderColor: '#444',
     height: 30,
     justifyContent: 'center',
   },
   dbList: {
     height: 180,
     width: '100%',
-    backgroundColor: '#222',
     borderRadius: 10,
     marginBottom: 10,
   },
   dbItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderColor: '#333',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   smallInput: {
-    backgroundColor: '#2C2C2C',
-    color: 'white',
     padding: 12,
     borderRadius: 8,
     textAlign: 'center',
     fontWeight: 'bold',
   },
   modalAddBtn: {
-    backgroundColor: '#FF8C00',
     width: '100%',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 20,
   },
-  btnText: { color: 'black', fontWeight: 'bold' },
+  btnText: { color: 'white', fontWeight: 'bold' },
 });
 
 export default EditMemberScreen;

@@ -13,11 +13,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  ScrollView, // ScrollView eklendi
+  ScrollView,
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const AdminShopScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,11 +39,10 @@ const AdminShopScreen = () => {
   const [image, setImage] = useState('');
   const [category, setCategory] = useState('');
 
-  // 1. Ürünleri Çekme (Real-time)
   useEffect(() => {
     const subscriber = firestore()
       .collection('products')
-      .orderBy('createdAt', 'desc') // En yeniler en üstte
+      .orderBy('createdAt', 'desc')
       .onSnapshot(
         querySnapshot => {
           const list = [];
@@ -61,20 +66,17 @@ const AdminShopScreen = () => {
     return () => subscriber();
   }, []);
 
-  // --- ÜRÜN EKLEME MODUNU AÇ ---
   const openAddMode = () => {
-    // Formu temizle
     setName('');
     setPrice('');
     setStock('');
     setImage('');
     setCategory('');
     setEditId(null);
-    setIsEditing(false); // Yeni ekleme modu
-    setModalVisible(true); // Pencereyi aç
+    setIsEditing(false);
+    setModalVisible(true);
   };
 
-  // --- DÜZENLEME MODUNU AÇ ---
   const openEditMode = item => {
     setName(item.name);
     setPrice(item.price ? String(item.price) : '');
@@ -82,21 +84,19 @@ const AdminShopScreen = () => {
     setImage(item.imageUrl || '');
     setCategory(item.category || '');
     setEditId(item.id);
-    setIsEditing(true); // Düzenleme modu
-    setModalVisible(true); // Pencereyi aç
+    setIsEditing(true);
+    setModalVisible(true);
   };
 
-  // 2. Kaydetme İşlemi (Hem Ekleme Hem Güncelleme)
   const handleSaveProduct = async () => {
     if (!name || !price || !stock) {
       Alert.alert(
-        'Eksik Bilgi',
+        'Eksik Bilgi', // İstersen t.missingInfo yapabilirsin
         'Lütfen Ürün Adı, Fiyat ve Stok alanlarını doldurun.',
       );
       return;
     }
 
-    // Sayısal çevirme işlemleri (Hata önleyici)
     const priceValue = parseFloat(price);
     const stockValue = parseInt(stock);
 
@@ -116,14 +116,12 @@ const AdminShopScreen = () => {
 
     try {
       if (isEditing) {
-        // Güncelleme
         await firestore()
           .collection('products')
           .doc(editId)
           .update(productData);
         Alert.alert('Başarılı', 'Ürün güncellendi.');
       } else {
-        // Yeni Ekleme
         await firestore()
           .collection('products')
           .add({
@@ -132,18 +130,17 @@ const AdminShopScreen = () => {
           });
         Alert.alert('Başarılı', 'Yeni ürün eklendi.');
       }
-      setModalVisible(false); // Modalı kapat
+      setModalVisible(false);
     } catch (error) {
       Alert.alert('Hata', 'Kaydedilirken sorun oluştu: ' + error.message);
     }
   };
 
-  // 3. Silme İşlemi
   const handleDelete = id => {
     Alert.alert('Ürünü Sil', 'Bu ürünü silmek istediğinize emin misiniz?', [
-      { text: 'Vazgeç', style: 'cancel' },
+      { text: t.cancel, style: 'cancel' }, // 🔥 Çeviri: İptal
       {
-        text: 'Sil',
+        text: 'Sil', // 🔥 Çeviri: Sil
         style: 'destructive',
         onPress: () => firestore().collection('products').doc(id).delete(),
       },
@@ -151,7 +148,6 @@ const AdminShopScreen = () => {
   };
 
   const renderItem = ({ item }) => {
-    // Stok Rengi Belirleme
     let stockColor = '#2ECC71';
     let stockText = `${item.stock} Adet`;
 
@@ -164,16 +160,27 @@ const AdminShopScreen = () => {
     }
 
     return (
-      <View style={styles.card}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
         <Image
           source={{ uri: item.imageUrl || 'https://via.placeholder.com/150' }}
-          style={styles.productImage}
+          style={[styles.productImage, { backgroundColor: theme.inputBg }]}
         />
 
         <View style={styles.infoContainer}>
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productCategory}>{item.category}</Text>
-          <Text style={styles.productPrice}>{item.price} ₺</Text>
+          <Text style={[styles.productName, { color: theme.text }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.productCategory, { color: theme.subText }]}>
+            {item.category}
+          </Text>
+          <Text style={[styles.productPrice, { color: theme.primary }]}>
+            {item.price} ₺
+          </Text>
         </View>
 
         <View style={styles.stockContainer}>
@@ -206,18 +213,29 @@ const AdminShopScreen = () => {
 
   if (loading)
     return (
-      <ActivityIndicator size="large" color="#E67E22" style={styles.center} />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
     );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mağaza Yönetimi</Text>
-        {/* BUTON BURADA: onPress olayının openAddMode olduğundan emin olun */}
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          {t.store || 'Mağaza Yönetimi'}
+        </Text>
         <TouchableOpacity
-          style={styles.addBtn}
+          style={[styles.addBtn, { backgroundColor: theme.primary }]}
           onPress={openAddMode}
           activeOpacity={0.7}
         >
@@ -231,56 +249,89 @@ const AdminShopScreen = () => {
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16 }}
         ListEmptyComponent={
-          <Text style={{ color: '#666', textAlign: 'center', marginTop: 20 }}>
+          <Text
+            style={{ color: theme.subText, textAlign: 'center', marginTop: 20 }}
+          >
             Henüz ürün eklenmemiş.
           </Text>
         }
       />
 
-      {/* --- MODAL --- */}
       <Modal
         visible={modalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalVisible(false)} // Android geri tuşu için
+        onRequestClose={() => setModalVisible(false)}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalBg}
         >
-          <View style={styles.modalContent}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
                 {isEditing ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle'}
               </Text>
 
-              <Text style={styles.label}>Ürün Adı</Text>
+              <Text style={[styles.label, { color: theme.subText }]}>
+                Ürün Adı
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.inputBg,
+                    color: theme.text,
+                    borderColor: theme.border,
+                  },
+                ]}
                 placeholder="Örn: Protein Tozu"
-                placeholderTextColor="#666"
+                placeholderTextColor={theme.subText}
                 value={name}
                 onChangeText={setName}
               />
 
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 10 }}>
-                  <Text style={styles.label}>Fiyat (₺)</Text>
+                  <Text style={[styles.label, { color: theme.subText }]}>
+                    Fiyat (₺)
+                  </Text>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: theme.inputBg,
+                        color: theme.text,
+                        borderColor: theme.border,
+                      },
+                    ]}
                     placeholder="0.00"
-                    placeholderTextColor="#666"
+                    placeholderTextColor={theme.subText}
                     keyboardType="numeric"
                     value={price}
                     onChangeText={setPrice}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Stok</Text>
+                  <Text style={[styles.label, { color: theme.subText }]}>
+                    Stok
+                  </Text>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: theme.inputBg,
+                        color: theme.text,
+                        borderColor: theme.border,
+                      },
+                    ]}
                     placeholder="0"
-                    placeholderTextColor="#666"
+                    placeholderTextColor={theme.subText}
                     keyboardType="numeric"
                     value={stock}
                     onChangeText={setStock}
@@ -288,40 +339,59 @@ const AdminShopScreen = () => {
                 </View>
               </View>
 
-              <Text style={styles.label}>Kategori</Text>
+              <Text style={[styles.label, { color: theme.subText }]}>
+                Kategori
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.inputBg,
+                    color: theme.text,
+                    borderColor: theme.border,
+                  },
+                ]}
                 placeholder="Örn: Gıda, Ekipman"
-                placeholderTextColor="#666"
+                placeholderTextColor={theme.subText}
                 value={category}
                 onChangeText={setCategory}
               />
 
-              <Text style={styles.label}>Resim URL</Text>
+              <Text style={[styles.label, { color: theme.subText }]}>
+                Resim URL
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.inputBg,
+                    color: theme.text,
+                    borderColor: theme.border,
+                  },
+                ]}
                 placeholder="https://..."
-                placeholderTextColor="#666"
+                placeholderTextColor={theme.subText}
                 value={image}
                 onChangeText={setImage}
               />
 
               <View style={styles.modalActions}>
                 <TouchableOpacity
-                  style={styles.cancelBtn}
+                  style={[styles.cancelBtn, { backgroundColor: theme.inputBg }]}
                   onPress={() => setModalVisible(false)}
                 >
-                  <Text style={styles.cancelText}>İptal</Text>
+                  <Text style={[styles.cancelText, { color: theme.text }]}>
+                    {t.cancel || 'İptal'}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.saveBtn}
+                  style={[styles.saveBtn, { backgroundColor: theme.success }]}
                   onPress={handleSaveProduct}
                 >
-                  <Text style={styles.saveText}>Kaydet</Text>
+                  <Text style={styles.saveText}>{t.save || 'Kaydet'}</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Alt boşluk (Scroll için) */}
               <View style={{ height: 20 }} />
             </ScrollView>
           </View>
@@ -332,49 +402,39 @@ const AdminShopScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
-  center: { flex: 1, backgroundColor: '#121212', justifyContent: 'center' },
-
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: '#1E1E1E',
   },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#FFF' },
-
+  headerTitle: { fontSize: 22, fontWeight: 'bold' },
   addBtn: {
-    backgroundColor: '#E67E22',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 8,
   },
   addBtnText: { color: '#FFF', fontWeight: 'bold' },
-
   card: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     marginBottom: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#333',
   },
   productImage: {
     width: 70,
     height: 70,
     borderRadius: 8,
-    backgroundColor: '#333',
     marginRight: 12,
   },
   infoContainer: { flex: 1, justifyContent: 'center' },
-  productName: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  productCategory: { color: '#888', fontSize: 12, marginBottom: 4 },
-  productPrice: { color: '#E67E22', fontSize: 16, fontWeight: '900' },
-
+  productName: { fontSize: 16, fontWeight: 'bold' },
+  productCategory: { fontSize: 12, marginBottom: 4 },
+  productPrice: { fontSize: 16, fontWeight: '900' },
   stockContainer: { alignItems: 'flex-end', justifyContent: 'space-between' },
   stockBadge: {
     paddingHorizontal: 8,
@@ -383,7 +443,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stockText: { fontSize: 11, fontWeight: 'bold' },
-
   actionRow: { flexDirection: 'row' },
   editBtn: {
     backgroundColor: '#3498DB',
@@ -393,7 +452,6 @@ const styles = StyleSheet.create({
   },
   deleteBtn: { backgroundColor: '#E74C3C', padding: 8, borderRadius: 6 },
   btnIcon: { fontSize: 14, color: '#FFF' },
-
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -401,33 +459,26 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 15,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#333',
     maxHeight: '80%',
     width: '100%',
   },
   modalTitle: {
-    color: '#FFF',
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
   },
-  label: { color: '#BBB', fontSize: 12, marginBottom: 5, marginLeft: 2 },
+  label: { fontSize: 12, marginBottom: 5, marginLeft: 2 },
   input: {
-    backgroundColor: '#2C2C2C',
-    color: '#FFF',
     borderRadius: 8,
     padding: 12,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
   },
   row: { flexDirection: 'row' },
-
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -435,7 +486,6 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     flex: 1,
-    backgroundColor: '#333',
     padding: 15,
     borderRadius: 8,
     marginRight: 10,
@@ -443,12 +493,11 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     flex: 1,
-    backgroundColor: '#2ECC71',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
   },
-  cancelText: { color: '#FFF', fontWeight: 'bold' },
+  cancelText: { fontWeight: 'bold' },
   saveText: { color: '#FFF', fontWeight: 'bold' },
 });
 

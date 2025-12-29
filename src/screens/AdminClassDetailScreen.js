@@ -13,31 +13,33 @@ import {
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const AdminClassDetailScreen = ({ route, navigation }) => {
-  // Navigation'dan gelen ders ID'sini ve ismini alıyoruz
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const { classId, className } = route.params;
   const [loading, setLoading] = useState(true);
   const [attendees, setAttendees] = useState([]);
   const [classInfo, setClassInfo] = useState(null);
 
   useEffect(() => {
-    // 1. Ders Bilgilerini Çek ve Katılımcıları Dinle
     const unsubscribeClass = firestore()
       .collection('classes')
       .doc(classId)
       .onSnapshot(
         async doc => {
           if (!doc.exists) {
-            Alert.alert('Hata', 'Ders bulunamadı.');
+            Alert.alert('Hata', 'Ders bulunamadı.'); // İstersen t.error kullanabilirsin
             navigation.goBack();
             return;
           }
           const data = doc.data();
           setClassInfo(data);
 
-          // 2. Katılımcı UID'lerini kullanarak kullanıcı adlarını çek
           if (data.attendees && data.attendees.length > 0) {
-            // Birden fazla üyeyi tek seferde çekmek için where(in) kullanabiliriz (daha optimize)
             const userSnap = await firestore()
               .collection('users')
               .where(firestore.FieldPath.documentId(), 'in', data.attendees)
@@ -46,7 +48,7 @@ const AdminClassDetailScreen = ({ route, navigation }) => {
             const attendeeList = userSnap.docs.map(userDoc => {
               return {
                 id: userDoc.id,
-                name: userDoc.data().fullName || 'İsimsiz Üye', // Adı fullName olarak kullanıyoruz
+                name: userDoc.data().fullName || 'İsimsiz Üye',
                 email: userDoc.data().email || 'E-mail Yok',
               };
             });
@@ -67,19 +69,17 @@ const AdminClassDetailScreen = ({ route, navigation }) => {
     return () => unsubscribeClass();
   }, [classId, navigation]);
 
-  // ÜYELİK SİLME İŞLEVİ
   const removeAttendee = (memberId, memberName) => {
     Alert.alert(
-      'Kayıt Silme Onayı',
+      'Kayıt Silme Onayı', // İstersen t.deleteConfirm gibi yapabilirsin
       `${memberName} adlı üyeyi bu dersten silmek istediğinizden emin misiniz?`,
       [
-        { text: 'Vazgeç', style: 'cancel' },
+        { text: t.cancel, style: 'cancel' }, // 🔥 Çeviri: İptal
         {
-          text: 'SİL',
+          text: 'SİL', // 🔥 Çeviri: Delete
           style: 'destructive',
           onPress: async () => {
             try {
-              // Atomik güncelleme ile üyeyi listeden çıkar
               await firestore()
                 .collection('classes')
                 .doc(classId)
@@ -97,10 +97,19 @@ const AdminClassDetailScreen = ({ route, navigation }) => {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.attendeeCard}>
+    <View
+      style={[
+        styles.attendeeCard,
+        { backgroundColor: theme.card, borderColor: theme.border },
+      ]}
+    >
       <View>
-        <Text style={styles.attendeeName}>{item.name}</Text>
-        <Text style={styles.attendeeEmail}>{item.email}</Text>
+        <Text style={[styles.attendeeName, { color: theme.text }]}>
+          {item.name}
+        </Text>
+        <Text style={[styles.attendeeEmail, { color: theme.subText }]}>
+          {item.email}
+        </Text>
       </View>
       <TouchableOpacity
         style={styles.removeButton}
@@ -113,35 +122,57 @@ const AdminClassDetailScreen = ({ route, navigation }) => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#FF8C00" size="large" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <Text style={styles.header}>{className} Detayı 🧑‍💻</Text>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+
+      {/* Başlık Dinamik */}
+      <Text style={[styles.header, { color: theme.text }]}>
+        {className} Detayı 🧑‍💻
+      </Text>
 
       {classInfo && (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>Eğitmen: {classInfo.instructor}</Text>
-          <Text style={styles.infoText}>Seviye: {classInfo.level}</Text>
-          <Text style={styles.infoText}>Zaman: {classInfo.time}</Text>
-          <Text style={styles.infoText}>
+        <View
+          style={[
+            styles.infoBox,
+            { backgroundColor: theme.card, borderLeftColor: theme.primary },
+          ]}
+        >
+          <Text style={[styles.infoText, { color: theme.text }]}>
+            Eğitmen: {classInfo.instructor}
+          </Text>
+          <Text style={[styles.infoText, { color: theme.text }]}>
+            Seviye: {classInfo.level}
+          </Text>
+          <Text style={[styles.infoText, { color: theme.text }]}>
+            Zaman: {classInfo.time}
+          </Text>
+          <Text style={[styles.infoText, { color: theme.text }]}>
             Kapasite: {attendees.length} / {classInfo.quota}
           </Text>
         </View>
       )}
 
-      <Text style={styles.listHeader}>Kayıtlı Üyeler ({attendees.length})</Text>
+      <Text style={[styles.listHeader, { color: theme.primary }]}>
+        Kayıtlı Üyeler ({attendees.length})
+      </Text>
 
       <FlatList
         data={attendees}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>Bu derse kayıtlı kimse yok.</Text>
+          <Text style={[styles.emptyText, { color: theme.subText }]}>
+            Bu derse kayıtlı kimse yok.
+          </Text>
         }
         contentContainerStyle={{ paddingBottom: 20 }}
       />
@@ -150,32 +181,27 @@ const AdminClassDetailScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
     textAlign: 'center',
     marginBottom: 20,
     marginTop: 10,
   },
   infoBox: {
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
   },
-  infoText: { color: 'white', fontSize: 14, marginBottom: 5 },
+  infoText: { fontSize: 14, marginBottom: 5 },
   listHeader: {
-    color: '#FF8C00',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
@@ -184,15 +210,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     borderLeftWidth: 3,
-    borderLeftColor: '#4CD964',
+    borderLeftColor: '#4CD964', // Sabit yeşil kalabilir veya theme.success yapılabilir
+    borderWidth: 1, // Border eklendi
   },
-  attendeeName: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-  attendeeEmail: { color: '#888', fontSize: 12, marginTop: 2 },
+  attendeeName: { fontSize: 16, fontWeight: 'bold' },
+  attendeeEmail: { fontSize: 12, marginTop: 2 },
   removeButton: {
     backgroundColor: '#FF3B30',
     paddingHorizontal: 10,
@@ -200,7 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   removeButtonText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
-  emptyText: { color: '#666', textAlign: 'center', marginTop: 50 },
+  emptyText: { textAlign: 'center', marginTop: 50 },
 });
 
 export default AdminClassDetailScreen;

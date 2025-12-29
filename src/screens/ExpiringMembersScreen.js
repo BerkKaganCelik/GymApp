@@ -12,7 +12,13 @@ import {
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const ExpiringMembersScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('expiring');
@@ -51,8 +57,8 @@ const ExpiringMembersScreen = () => {
       await firestore()
         .collection('notifications')
         .add({
-          targetUser: item.key, // Üyenin ID'si
-          title: 'Süre Uyarısı ⚠️',
+          targetUser: item.key,
+          title: t.expiryWarning || 'Süre Uyarısı ⚠️', // Çeviri
           message: `Sayın ${
             item.fullName
           }, üyeliğinizin süresi ${item.endDate.toLocaleDateString()} tarihinde dolacaktır.`,
@@ -77,7 +83,7 @@ const ExpiringMembersScreen = () => {
       const ref = firestore().collection('notifications').doc();
       batch.set(ref, {
         targetUser: doc.id,
-        title: 'GENEL DUYURU 📢',
+        title: t.generalAnnouncement || 'GENEL DUYURU 📢', // Çeviri
         message: broadcastMsg,
         createdAt: firestore.FieldValue.serverTimestamp(),
         read: false,
@@ -89,63 +95,91 @@ const ExpiringMembersScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <View style={styles.tabs}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+
+      <View style={[styles.tabs, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={[styles.tab, tab === 'expiring' && styles.activeTab]}
+          style={[
+            styles.tab,
+            tab === 'expiring' && { backgroundColor: theme.inputBg },
+          ]}
           onPress={() => setTab('expiring')}
         >
-          <Text style={styles.tabText}>⚠️ Süresi Bitenler</Text>
+          <Text style={[styles.tabText, { color: theme.text }]}>
+            ⚠️ {t.expiringMembers || 'Süresi Bitenler'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, tab === 'broadcast' && styles.activeTab]}
+          style={[
+            styles.tab,
+            tab === 'broadcast' && { backgroundColor: theme.inputBg },
+          ]}
           onPress={() => setTab('broadcast')}
         >
-          <Text style={styles.tabText}>📢 Genel Duyuru</Text>
+          <Text style={[styles.tabText, { color: theme.text }]}>
+            📢 {t.broadcast || 'Genel Duyuru'}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {tab === 'expiring' ? (
         loading ? (
-          <ActivityIndicator color="#FF8C00" />
+          <ActivityIndicator color={theme.primary} />
         ) : (
           <FlatList
             data={members}
             renderItem={({ item }) => (
-              <View style={styles.card}>
+              <View style={[styles.card, { backgroundColor: theme.card }]}>
                 <View>
-                  <Text style={styles.name}>{item.fullName}</Text>
-                  <Text style={styles.date}>
+                  <Text style={[styles.name, { color: theme.text }]}>
+                    {item.fullName}
+                  </Text>
+                  <Text style={[styles.date, { color: theme.subText }]}>
                     {item.endDate.toLocaleDateString('tr-TR')}
                   </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => sendNotification(item)}
-                  style={styles.bell}
+                  style={[styles.bell, { backgroundColor: theme.inputBg }]}
                 >
                   <Text>🔔</Text>
                 </TouchableOpacity>
               </View>
             )}
             ListEmptyComponent={
-              <Text style={styles.empty}>Riskli üye yok.</Text>
+              <Text style={[styles.empty, { color: theme.subText }]}>
+                {t.noExpiringMembers || 'Riskli üye yok.'}
+              </Text>
             }
           />
         )
       ) : (
         <View style={styles.broadcastBox}>
-          <Text style={styles.label}>Tüm Üyelere Mesaj Gönder</Text>
+          <Text style={[styles.label, { color: theme.text }]}>
+            {t.sendToAll || 'Tüm Üyelere Mesaj Gönder'}
+          </Text>
           <TextInput
-            style={styles.input}
-            placeholder="Duyurunuz..."
-            placeholderTextColor="#666"
+            style={[
+              styles.input,
+              { backgroundColor: theme.card, color: theme.text },
+            ]}
+            placeholder={t.announcementPlaceholder || 'Duyurunuz...'}
+            placeholderTextColor={theme.subText}
             multiline
             value={broadcastMsg}
             onChangeText={setBroadcastMsg}
           />
-          <TouchableOpacity style={styles.sendBtn} onPress={sendBroadcast}>
-            <Text style={styles.sendText}>HERKESE GÖNDER 🚀</Text>
+          <TouchableOpacity
+            style={[styles.sendBtn, { backgroundColor: theme.primary }]}
+            onPress={sendBroadcast}
+          >
+            <Text style={styles.sendText}>
+              {t.sendBroadcast || 'HERKESE GÖNDER 🚀'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -154,37 +188,32 @@ const ExpiringMembersScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   tabs: {
     flexDirection: 'row',
     marginBottom: 20,
-    backgroundColor: '#1E1E1E',
     borderRadius: 10,
     padding: 5,
   },
   tab: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 8 },
-  activeTab: { backgroundColor: '#333' },
-  tabText: { color: 'white', fontWeight: 'bold' },
+  tabText: { fontWeight: 'bold' },
   card: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     marginBottom: 10,
     borderRadius: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF3B30',
+    borderLeftColor: '#FF3B30', // Kırmızı sabit kalabilir, uyarı rengi
     alignItems: 'center',
   },
-  name: { color: 'white', fontWeight: 'bold' },
-  date: { color: '#888', fontSize: 12 },
-  bell: { backgroundColor: '#333', padding: 10, borderRadius: 20 },
-  empty: { color: '#666', textAlign: 'center', marginTop: 50 },
+  name: { fontWeight: 'bold' },
+  date: { fontSize: 12 },
+  bell: { padding: 10, borderRadius: 20 },
+  empty: { textAlign: 'center', marginTop: 50 },
   broadcastBox: { flex: 1 },
-  label: { color: 'white', marginBottom: 10, fontWeight: 'bold' },
+  label: { marginBottom: 10, fontWeight: 'bold' },
   input: {
-    backgroundColor: '#1E1E1E',
-    color: 'white',
     padding: 15,
     borderRadius: 10,
     height: 100,
@@ -192,11 +221,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   sendBtn: {
-    backgroundColor: '#007AFF',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
   },
   sendText: { color: 'white', fontWeight: 'bold' },
 });
+
 export default ExpiringMembersScreen;

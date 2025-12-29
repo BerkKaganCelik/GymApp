@@ -12,12 +12,18 @@ import {
   StatusBar,
   Platform,
   KeyboardAvoidingView,
-  TouchableOpacity, // <--- ÖNEMLİ
+  TouchableOpacity,
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { GROQ_API_KEY } from '@env';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const AdminTrainingScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [members, setMembers] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -69,7 +75,7 @@ const AdminTrainingScreen = () => {
       return;
     }
     if (!target) {
-      Alert.alert('Eksik', 'Lütfen bir hedef girin (Örn: Hacim).');
+      Alert.alert('Eksik', 'Lütfen bir hedef girin (Örn: Hacim).'); // İstersen t.missingInfo yapabilirsin
       return;
     }
 
@@ -151,38 +157,53 @@ const AdminTrainingScreen = () => {
     }
   };
 
-  // 🔥 GÜNCELLENEN KISIM: TouchableOpacity
   const renderMember = ({ item }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={[
+        styles.card,
+        { backgroundColor: theme.card, borderColor: theme.border },
+      ]}
       activeOpacity={0.7}
       onPress={() => openProgramEditor(item)}
     >
-      <View style={styles.avatar}>
+      <View style={[styles.avatar, { backgroundColor: theme.inputBg }]}>
         <Text style={{ fontSize: 18 }}>🏋️</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{item.fullName}</Text>
+        <Text style={[styles.name, { color: theme.text }]}>
+          {item.fullName}
+        </Text>
         <Text
           style={{
-            color: item.trainingProgram ? '#4CD964' : '#E74C3C',
+            color: item.trainingProgram ? theme.success : theme.danger,
             fontSize: 12,
           }}
         >
           {item.trainingProgram ? '✅ Program Hazır' : '❌ Program Yok'}
         </Text>
       </View>
-      <View style={styles.iconBox}>
-        <Text style={{ fontSize: 16, color: 'white' }}>✏️</Text>
+      <View style={[styles.iconBox, { backgroundColor: theme.inputBg }]}>
+        <Text style={{ fontSize: 16, color: theme.text }}>✏️</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>AI Spor Koçu ⚡</Text>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          AI Spor Koçu ⚡
+        </Text>
       </View>
 
       <FlatList
@@ -201,16 +222,22 @@ const AdminTrainingScreen = () => {
         <View style={styles.modalBg}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
+            style={{ flex: 1, justifyContent: 'flex-end' }}
           >
-            <View style={styles.modalContent}>
+            <View
+              style={[styles.modalContent, { backgroundColor: theme.card }]}
+            >
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{selectedUser?.fullName}</Text>
+                <Text style={[styles.modalTitle, { color: theme.primary }]}>
+                  {selectedUser?.fullName}
+                </Text>
                 <TouchableOpacity
                   onPress={() => setModalVisible(false)}
                   hitSlop={15}
                 >
-                  <Text style={{ color: '#888', fontSize: 16, padding: 5 }}>
+                  <Text
+                    style={{ color: theme.subText, fontSize: 16, padding: 5 }}
+                  >
                     Kapat ✖
                   </Text>
                 </TouchableOpacity>
@@ -219,29 +246,47 @@ const AdminTrainingScreen = () => {
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={{ flexDirection: 'row', marginBottom: 15 }}>
                   <View style={{ flex: 1, marginRight: 10 }}>
-                    <Text style={styles.label}>Hedef</Text>
+                    <Text style={[styles.label, { color: theme.subText }]}>
+                      {t.target || 'Hedef'}
+                    </Text>
                     <TextInput
-                      style={styles.input}
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: theme.inputBg,
+                          color: theme.text,
+                          borderColor: theme.border,
+                        },
+                      ]}
                       value={target}
                       onChangeText={setTarget}
                       placeholder="Kas Kazanma"
-                      placeholderTextColor="#555"
+                      placeholderTextColor={theme.subText}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Seviye</Text>
+                    <Text style={[styles.label, { color: theme.subText }]}>
+                      Seviye
+                    </Text>
                     <TextInput
-                      style={styles.input}
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: theme.inputBg,
+                          color: theme.text,
+                          borderColor: theme.border,
+                        },
+                      ]}
                       value={level}
                       onChangeText={setLevel}
                       placeholder="Başlangıç"
-                      placeholderTextColor="#555"
+                      placeholderTextColor={theme.subText}
                     />
                   </View>
                 </View>
 
                 <TouchableOpacity
-                  style={styles.aiButton}
+                  style={[styles.aiButton, { backgroundColor: '#3498DB' }]}
                   onPress={generateTrainingWithAI}
                   disabled={aiLoading}
                 >
@@ -254,48 +299,88 @@ const AdminTrainingScreen = () => {
                   )}
                 </TouchableOpacity>
 
-                <Text style={styles.label}>1. Gün</Text>
+                <Text style={[styles.label, { color: theme.subText }]}>
+                  1. Gün
+                </Text>
                 <TextInput
-                  style={[styles.input, styles.area]}
+                  style={[
+                    styles.input,
+                    styles.area,
+                    {
+                      backgroundColor: theme.inputBg,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    },
+                  ]}
                   value={day1}
                   onChangeText={setDay1}
                   multiline
                   placeholder="Bekleniyor..."
-                  placeholderTextColor="#555"
+                  placeholderTextColor={theme.subText}
                 />
 
-                <Text style={styles.label}>2. Gün</Text>
+                <Text style={[styles.label, { color: theme.subText }]}>
+                  2. Gün
+                </Text>
                 <TextInput
-                  style={[styles.input, styles.area]}
+                  style={[
+                    styles.input,
+                    styles.area,
+                    {
+                      backgroundColor: theme.inputBg,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    },
+                  ]}
                   value={day2}
                   onChangeText={setDay2}
                   multiline
                   placeholder="Bekleniyor..."
-                  placeholderTextColor="#555"
+                  placeholderTextColor={theme.subText}
                 />
 
-                <Text style={styles.label}>3. Gün</Text>
+                <Text style={[styles.label, { color: theme.subText }]}>
+                  3. Gün
+                </Text>
                 <TextInput
-                  style={[styles.input, styles.area]}
+                  style={[
+                    styles.input,
+                    styles.area,
+                    {
+                      backgroundColor: theme.inputBg,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    },
+                  ]}
                   value={day3}
                   onChangeText={setDay3}
                   multiline
                   placeholder="Bekleniyor..."
-                  placeholderTextColor="#555"
+                  placeholderTextColor={theme.subText}
                 />
 
-                <Text style={styles.label}>4. Gün</Text>
+                <Text style={[styles.label, { color: theme.subText }]}>
+                  4. Gün
+                </Text>
                 <TextInput
-                  style={[styles.input, styles.area]}
+                  style={[
+                    styles.input,
+                    styles.area,
+                    {
+                      backgroundColor: theme.inputBg,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    },
+                  ]}
                   value={day4}
                   onChangeText={setDay4}
                   multiline
                   placeholder="Bekleniyor..."
-                  placeholderTextColor="#555"
+                  placeholderTextColor={theme.subText}
                 />
 
                 <TouchableOpacity
-                  style={styles.saveBtn}
+                  style={[styles.saveBtn, { backgroundColor: theme.success }]}
                   onPress={handleSaveProgram}
                 >
                   <Text style={styles.saveText}>PROGRAMI KAYDET 💾</Text>
@@ -311,43 +396,37 @@ const AdminTrainingScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1 },
   header: {
     padding: 20,
-    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderColor: '#333',
     alignItems: 'center',
   },
-  headerTitle: { color: 'white', fontSize: 22, fontWeight: 'bold' },
+  headerTitle: { fontSize: 22, fontWeight: 'bold' },
   card: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     marginBottom: 12,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
   },
   avatar: {
     width: 45,
     height: 45,
-    backgroundColor: '#2C2C2C',
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
   },
-  name: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  iconBox: { backgroundColor: '#333', padding: 8, borderRadius: 8 },
+  name: { fontWeight: 'bold', fontSize: 16 },
+  iconBox: { padding: 8, borderRadius: 8 },
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1a1a1a',
     height: '92%',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
@@ -358,26 +437,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  modalTitle: { color: '#3498DB', fontSize: 20, fontWeight: 'bold' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
   label: {
-    color: '#AAA',
     fontSize: 13,
     marginBottom: 6,
     marginTop: 12,
     fontWeight: 'bold',
   },
   input: {
-    backgroundColor: '#252525',
-    color: 'white',
     borderRadius: 10,
     padding: 12,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: '#333',
   },
   area: { height: 80, textAlignVertical: 'top' },
   aiButton: {
-    backgroundColor: '#3498DB',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -385,13 +459,12 @@ const styles = StyleSheet.create({
   },
   aiButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   saveBtn: {
-    backgroundColor: '#2ECC71',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 25,
   },
-  saveText: { color: 'black', fontWeight: 'bold', fontSize: 16 },
+  saveText: { color: 'white', fontWeight: 'bold', fontSize: 16 }, // Siyah yazı bazen okunmayabilir, white yaptım
 });
 
 export default AdminTrainingScreen;

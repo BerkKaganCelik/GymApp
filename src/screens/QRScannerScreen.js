@@ -19,7 +19,13 @@ import {
 } from 'react-native-vision-camera';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const QRScannerScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const { hasPermission, requestPermission } = useCameraPermission();
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(true);
@@ -40,22 +46,25 @@ const QRScannerScreen = () => {
 
       if (!userDoc.exists) {
         Vibration.vibrate(500);
-        Alert.alert('HATA ❌', 'Kullanıcı bulunamadı!', [
-          {
-            text: 'TAMAM',
-            onPress: () => {
-              setScanning(true);
-              setLoading(false);
+        Alert.alert(
+          t.error || 'HATA ❌',
+          t.userNotFound || 'Kullanıcı bulunamadı!',
+          [
+            {
+              text: t.ok || 'TAMAM',
+              onPress: () => {
+                setScanning(true);
+                setLoading(false);
+              },
             },
-          },
-        ]);
+          ],
+        );
         return;
       }
 
       const userData = userDoc.data();
 
       // ✨ GÜVENLİK GÜNCELLEMESİ: Sunucu Zamanı Kontrolü
-      // Telefonun saati (new Date()) yerine Firestore sunucu zamanını alıyoruz.
       const serverTimestamp = firestore.Timestamp.now();
       const nowMs = serverTimestamp.toMillis();
       const expiryMs = userData.membershipExpiry?.toMillis() || 0;
@@ -63,7 +72,10 @@ const QRScannerScreen = () => {
       // 1. PASİF KONTROLÜ
       if (!userData.isActive) {
         Vibration.vibrate([100, 100, 100]);
-        Alert.alert('GİRİŞ REDDEDİLDİ ⛔', 'Üyelik pasif durumda/dondurulmuş.');
+        Alert.alert(
+          t.accessDenied || 'GİRİŞ REDDEDİLDİ ⛔',
+          t.membershipFrozen || 'Üyelik pasif durumda/dondurulmuş.',
+        );
         setScanning(true);
         setLoading(false);
         return;
@@ -76,8 +88,10 @@ const QRScannerScreen = () => {
           ?.toDate()
           .toLocaleDateString('tr-TR');
         Alert.alert(
-          'SÜRE DOLMUŞ ⚠️',
-          `${userData.fullName} üyelik süresi bitmiş.\nBitiş: ${expiryDateStr}`,
+          t.accessDenied || 'SÜRE DOLMUŞ ⚠️',
+          `${userData.fullName} ${
+            t.membershipExpired || 'üyelik süresi bitmiş.'
+          }\n${t.end || 'Bitiş'}: ${expiryDateStr}`,
         );
         setScanning(true);
         setLoading(false);
@@ -92,7 +106,7 @@ const QRScannerScreen = () => {
         .limit(1)
         .get();
 
-      let welcomeMsg = `Hoşgeldin, ${userData.fullName}`;
+      let welcomeMsg = `${t.welcome || 'Hoşgeldin'}, ${userData.fullName}`;
 
       if (!lastLog.empty) {
         const lastDate = lastLog.docs[0].data().timestamp.toDate();
@@ -100,8 +114,10 @@ const QRScannerScreen = () => {
           (serverTimestamp.toDate() - lastDate) / (1000 * 60 * 60 * 24),
         );
         if (diffDays > 0)
-          welcomeMsg += `\nSeni ${diffDays} gündür görmüyorduk! 💪`;
-        else welcomeMsg += `\nBugün tekrar hoşgeldin!`;
+          welcomeMsg += `\n${t.longTimeNoSee || 'Seni görmeyeli'} ${diffDays} ${
+            t.days || 'gün oldu'
+          }! 💪`;
+        else welcomeMsg += `\n${t.welcomeBack || 'Bugün tekrar hoşgeldin!'}`;
       }
 
       // 4. GİRİŞİ KAYDET
@@ -114,9 +130,9 @@ const QRScannerScreen = () => {
       });
 
       Vibration.vibrate(100);
-      Alert.alert('GİRİŞ BAŞARILI ✅', welcomeMsg, [
+      Alert.alert(t.success || 'GİRİŞ BAŞARILI ✅', welcomeMsg, [
         {
-          text: 'TAMAM',
+          text: t.ok || 'TAMAM',
           onPress: () => {
             setScanning(true);
             setLoading(false);
@@ -125,7 +141,7 @@ const QRScannerScreen = () => {
         },
       ]);
     } catch (error) {
-      Alert.alert('Sistem Hatası', error.message);
+      Alert.alert(t.error || 'Sistem Hatası', error.message);
       setScanning(true);
       setLoading(false);
     }
@@ -140,29 +156,37 @@ const QRScannerScreen = () => {
 
   if (!hasPermission)
     return (
-      <TouchableOpacity style={styles.center} onPress={requestPermission}>
-        <Text style={{ color: 'white' }}>Kamera İzni İste</Text>
+      <TouchableOpacity
+        style={[styles.center, { backgroundColor: theme.bg }]}
+        onPress={requestPermission}
+      >
+        <Text style={{ color: theme.text }}>
+          {t.cameraPermission || 'Kamera İzni İste'}
+        </Text>
       </TouchableOpacity>
     );
   if (device == null)
     return (
-      <View style={styles.center}>
-        <Text style={{ color: 'white', fontSize: 30 }}>⚠️</Text>
-        <Text style={{ color: 'white', marginVertical: 20 }}>
-          Kamera Yok (Emülatör)
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <Text style={{ color: theme.text, fontSize: 30 }}>⚠️</Text>
+        <Text style={{ color: theme.text, marginVertical: 20 }}>
+          {t.noCamera || 'Kamera Yok (Emülatör)'}
         </Text>
         <TextInput
-          style={styles.input}
-          placeholder="Manuel ID Gir"
-          placeholderTextColor="#666"
+          style={[
+            styles.input,
+            { backgroundColor: theme.inputBg, color: theme.text },
+          ]}
+          placeholder={t.manualIdPlaceholder || 'Manuel ID Gir'}
+          placeholderTextColor={theme.subText}
           value={manualUid}
           onChangeText={setManualUid}
         />
         <TouchableOpacity
-          style={styles.btn}
+          style={[styles.btn, { backgroundColor: theme.success }]}
           onPress={() => handleScan(manualUid)}
         >
-          <Text style={styles.btnTxt}>GİRİŞ YAP</Text>
+          <Text style={styles.btnTxt}>{t.login || 'GİRİŞ YAP'}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -177,9 +201,16 @@ const QRScannerScreen = () => {
         codeScanner={codeScanner}
       />
       <View style={styles.overlay}>
-        <View style={styles.scanBox} />
-        <Text style={styles.text}>
-          {loading ? 'Kontrol Ediliyor...' : 'QR Kodu Okutun'}
+        <View style={[styles.scanBox, { borderColor: theme.success }]} />
+        <Text
+          style={[
+            styles.text,
+            { backgroundColor: 'rgba(0,0,0,0.7)', color: 'white' },
+          ]}
+        >
+          {loading
+            ? t.checking || 'Kontrol Ediliyor...'
+            : t.scanQr || 'QR Kodu Okutun'}
         </Text>
       </View>
     </View>
@@ -190,7 +221,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -205,32 +235,29 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderWidth: 2,
-    borderColor: '#4CD964',
     borderRadius: 20,
   },
   text: {
-    color: 'white',
     marginTop: 20,
     fontSize: 18,
     fontWeight: 'bold',
-    backgroundColor: 'black',
     padding: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
   },
   input: {
     width: '100%',
-    backgroundColor: '#333',
-    color: 'white',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
   },
   btn: {
-    backgroundColor: '#4CD964',
     padding: 15,
     borderRadius: 10,
     width: '100%',
     alignItems: 'center',
   },
-  btnTxt: { fontWeight: 'bold', color: 'black' },
+  btnTxt: { fontWeight: 'bold', color: 'white' },
 });
+
 export default QRScannerScreen;

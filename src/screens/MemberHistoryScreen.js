@@ -11,7 +11,13 @@ import {
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const MemberHistoryScreen = ({ navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   // 1. Hook'lar EN ÜSTTE ve KOŞULSUZ olarak tanımlanmalı
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,8 +95,8 @@ const MemberHistoryScreen = ({ navigation }) => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#FF8C00" size="large" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
 
@@ -111,7 +117,11 @@ const MemberHistoryScreen = ({ navigation }) => {
     if (item.type === 'workout') {
       return (
         <TouchableOpacity
-          style={[styles.card, styles.workoutCard]}
+          style={[
+            styles.card,
+            styles.workoutCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
           onPress={() =>
             navigation.navigate('WorkoutDetail', {
               workoutLog: item.detailedLog || [],
@@ -119,53 +129,86 @@ const MemberHistoryScreen = ({ navigation }) => {
             })
           }
         >
-          <View style={styles.iconBox}>
+          <View style={[styles.iconBox, { backgroundColor: theme.inputBg }]}>
             <Text style={{ fontSize: 20 }}>🔥</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.dateText}>{formatDate(item.dateObj)}</Text>
-            <Text style={styles.workoutText}>{item.programName}</Text>
-            <Text style={styles.detailText}>
-              {item.totalSetsDone} Set Tamamlandı
+            <Text style={[styles.dateText, { color: theme.subText }]}>
+              {formatDate(item.dateObj)}
+            </Text>
+            <Text style={[styles.workoutText, { color: theme.text }]}>
+              {item.programName}
+            </Text>
+            <Text style={[styles.detailText, { color: theme.primary }]}>
+              {item.totalSetsDone} {t.setsDone || 'Set Tamamlandı'}
               {item.totalWeightLifted ? ` | ${item.totalWeightLifted} kg` : ''}
             </Text>
           </View>
-          <Text style={{ color: '#007AFF', fontWeight: 'bold' }}>Detay ➡️</Text>
+          <Text style={{ color: theme.primary, fontWeight: 'bold' }}>
+            {t.details || 'Detay'} ➡️
+          </Text>
         </TouchableOpacity>
       );
     }
 
     return (
-      <View style={[styles.card, styles.entryCard]}>
-        <View style={styles.iconBox}>
+      <View
+        style={[
+          styles.card,
+          styles.entryCard,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        <View style={[styles.iconBox, { backgroundColor: theme.inputBg }]}>
           <Text style={{ fontSize: 20 }}>🚪</Text>
         </View>
         <View>
-          <Text style={styles.dateText}>{formatDate(item.dateObj)}</Text>
-          <Text style={styles.workoutText}>Salona Giriş</Text>
+          <Text style={[styles.dateText, { color: theme.subText }]}>
+            {formatDate(item.dateObj)}
+          </Text>
+          <Text style={[styles.workoutText, { color: theme.text }]}>
+            {t.gymEntry || 'Salona Giriş'}
+          </Text>
         </View>
-        <Text style={{ color: '#4CD964', marginLeft: 'auto' }}>✅</Text>
+        <Text style={{ color: theme.success, marginLeft: 'auto' }}>✅</Text>
       </View>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <Text style={styles.header}>GEÇMİŞİM 📜</Text>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
-      <View style={styles.tabs}>
+      {/* Başlık Dinamik */}
+      <Text style={[styles.header, { color: theme.text }]}>
+        {t.history || 'GEÇMİŞİM'} 📜
+      </Text>
+
+      <View style={[styles.tabs, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={[styles.tabButton, tab === 'workout' && styles.activeTab]}
+          style={[
+            styles.tabButton,
+            tab === 'workout' && { backgroundColor: theme.inputBg },
+          ]}
           onPress={() => setTab('workout')}
         >
-          <Text style={styles.tabText}>Antrenmanlar</Text>
+          <Text style={[styles.tabText, { color: theme.text }]}>
+            {t.workouts || 'Antrenmanlar'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tabButton, tab === 'entry' && styles.activeTab]}
+          style={[
+            styles.tabButton,
+            tab === 'entry' && { backgroundColor: theme.inputBg },
+          ]}
           onPress={() => setTab('entry')}
         >
-          <Text style={styles.tabText}>Giriş Kayıtları</Text>
+          <Text style={[styles.tabText, { color: theme.text }]}>
+            {t.entryLogs || 'Giriş Kayıtları'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -175,8 +218,12 @@ const MemberHistoryScreen = ({ navigation }) => {
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 20 }}
         ListEmptyComponent={
-          <Text style={{ color: '#666', textAlign: 'center', marginTop: 50 }}>
-            Henüz {tab === 'workout' ? 'antrenman' : 'giriş'} kaydınız yok.
+          <Text
+            style={{ color: theme.subText, textAlign: 'center', marginTop: 50 }}
+          >
+            {tab === 'workout'
+              ? t.noWorkouts || 'Henüz antrenman kaydınız yok.'
+              : t.noEntries || 'Henüz giriş kaydınız yok.'}
           </Text>
         }
       />
@@ -185,24 +232,21 @@ const MemberHistoryScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
     textAlign: 'center',
     marginBottom: 20,
   },
   tabs: {
     flexDirection: 'row',
     marginBottom: 20,
-    backgroundColor: '#1E1E1E',
     borderRadius: 10,
     padding: 5,
   },
@@ -212,31 +256,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  activeTab: { backgroundColor: '#333' },
-  tabText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  tabText: { fontWeight: 'bold', fontSize: 12 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 12,
     marginBottom: 10,
     borderLeftWidth: 4,
+    borderWidth: 1,
   },
-  workoutCard: { borderLeftColor: '#FF8C00' },
-  entryCard: { borderLeftColor: '#4CD964' },
+  workoutCard: { borderLeftColor: '#FF8C00' }, // Sabit renk kalabilir veya theme.primary
+  entryCard: { borderLeftColor: '#4CD964' }, // Sabit renk kalabilir veya theme.success
   iconBox: {
     width: 40,
     height: 40,
-    backgroundColor: '#333',
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
   },
-  dateText: { color: '#888', fontSize: 12 },
-  workoutText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  detailText: { color: '#FF8C00', fontSize: 11, marginTop: 3 },
+  dateText: { fontSize: 12 },
+  workoutText: { fontWeight: 'bold', fontSize: 16 },
+  detailText: { fontSize: 11, marginTop: 3 },
 });
 
 export default MemberHistoryScreen;

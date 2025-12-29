@@ -12,9 +12,15 @@ import {
 import firestore from '@react-native-firebase/firestore';
 import { BarChart, PieChart } from 'react-native-chart-kit';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const screenWidth = Dimensions.get('window').width;
 
 const AdminAnalyticsScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -29,15 +35,12 @@ const AdminAnalyticsScreen = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // --- 1. OPTİMİZE EDİLMİŞ SAYAÇLAR (AGGREGATION) ---
-        // Toplam Üye (count() sadece sayıyı getirir, belgeyi indirmez)
         const totalMembersSnap = await firestore()
           .collection('users')
           .count()
           .get();
         const totalMembers = totalMembersSnap.data().count;
 
-        // Aktif Üye
         const activeMembersSnap = await firestore()
           .collection('users')
           .where('isActive', '==', true)
@@ -46,8 +49,6 @@ const AdminAnalyticsScreen = () => {
           .get();
         const activeCount = activeMembersSnap.data().count;
 
-        // --- 2. CİRO HESABI (SON 30 GÜN FİLTRESİ) ---
-        // Performans için sadece son 1 ayın verisini çekiyoruz.
         const lastMonth = new Date();
         lastMonth.setMonth(lastMonth.getMonth() - 1);
 
@@ -57,8 +58,8 @@ const AdminAnalyticsScreen = () => {
           .orderBy('orderDate', 'desc')
           .get();
 
-        let sRevenue = 0; // Mağaza
-        let mRevenue = 0; // Üyelik
+        let sRevenue = 0;
+        let mRevenue = 0;
         const recentList = [];
 
         ordersSnap.forEach(doc => {
@@ -71,7 +72,6 @@ const AdminAnalyticsScreen = () => {
             sRevenue += price;
           }
 
-          // Listeye sadece ilk 5'i ekle
           if (recentList.length < 5) {
             recentList.push({
               id: doc.id,
@@ -86,7 +86,6 @@ const AdminAnalyticsScreen = () => {
           }
         });
 
-        // --- 3. YOĞUNLUK HARİTASI (SADECE BUGÜN) ---
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -110,7 +109,7 @@ const AdminAnalyticsScreen = () => {
         });
 
         setStats({
-          totalRevenue: mRevenue + sRevenue, // Not: Bu sadece son 30 günün cirosudur
+          totalRevenue: mRevenue + sRevenue,
           shopRevenue: sRevenue,
           membershipRevenue: mRevenue,
           activeMemberCount: activeCount,
@@ -131,32 +130,39 @@ const AdminAnalyticsScreen = () => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#FF8C00" size="large" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
 
   const pieData = [
     {
-      name: 'Mağaza',
+      name: t.store || 'Mağaza', // Eğer çeviri yoksa varsayılan
       population: stats.shopRevenue,
       color: '#FF9500',
-      legendFontColor: '#FFF',
+      legendFontColor: theme.text, // 🔥 Dinamik renk
       legendFontSize: 12,
     },
     {
       name: 'Üyelik',
       population: stats.membershipRevenue,
       color: '#007AFF',
-      legendFontColor: '#FFF',
+      legendFontColor: theme.text, // 🔥 Dinamik renk
       legendFontSize: 12,
     },
   ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <Text style={styles.header}>RAPOR (Son 30 Gün) 📊</Text>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+
+      {/* Başlık Dinamik */}
+      <Text style={[styles.header, { color: theme.text }]}>
+        {t.businessIntel || 'RAPOR'} (30 Gün) 📊
+      </Text>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
         {/* KPI KARTLARI */}
@@ -164,49 +170,75 @@ const AdminAnalyticsScreen = () => {
           <View
             style={[
               styles.kpiCard,
-              { backgroundColor: '#1E1E1E', borderLeftColor: '#4CD964' },
+              { backgroundColor: theme.card, borderLeftColor: '#4CD964' }, // 🔥 Dinamik Arkaplan
             ]}
           >
-            <Text style={styles.kpiLabel}>AYLIK CİRO</Text>
-            <Text style={styles.kpiValue}>{stats.totalRevenue} ₺</Text>
+            <Text style={[styles.kpiLabel, { color: theme.subText }]}>
+              AYLIK CİRO
+            </Text>
+            <Text style={[styles.kpiValue, { color: theme.text }]}>
+              {stats.totalRevenue} ₺
+            </Text>
           </View>
           <View
             style={[
               styles.kpiCard,
-              { backgroundColor: '#1E1E1E', borderLeftColor: '#007AFF' },
+              { backgroundColor: theme.card, borderLeftColor: '#007AFF' }, // 🔥 Dinamik Arkaplan
             ]}
           >
-            <Text style={styles.kpiLabel}>AKTİF / TOPLAM ÜYE</Text>
-            <Text style={styles.kpiValue}>
+            <Text style={[styles.kpiLabel, { color: theme.subText }]}>
+              AKTİF / TOPLAM
+            </Text>
+            <Text style={[styles.kpiValue, { color: theme.text }]}>
               {stats.activeMemberCount} / {stats.totalMembers}
             </Text>
           </View>
         </View>
 
         {/* GELİR DAĞILIMI */}
-        <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>GELİR DAĞILIMI 💰</Text>
+        <View
+          style={[
+            styles.chartCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.cardTitle, { color: theme.primary }]}>
+            GELİR DAĞILIMI 💰
+          </Text>
           {stats.totalRevenue > 0 ? (
             <PieChart
               data={pieData}
               width={screenWidth - 40}
               height={200}
-              chartConfig={{ color: (opacity = 1) => `white` }}
+              chartConfig={{ color: (opacity = 1) => theme.text }} // 🔥 Dinamik renk
               accessor={'population'}
               backgroundColor={'transparent'}
               paddingLeft={'15'}
               absolute
             />
           ) : (
-            <Text style={{ color: '#666', textAlign: 'center', marginTop: 20 }}>
+            <Text
+              style={{
+                color: theme.subText,
+                textAlign: 'center',
+                marginTop: 20,
+              }}
+            >
               Bu ay veri yok.
             </Text>
           )}
         </View>
 
         {/* BUGÜNKÜ YOĞUNLUK */}
-        <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>BUGÜNKÜ YOĞUNLUK 🕒</Text>
+        <View
+          style={[
+            styles.chartCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.cardTitle, { color: theme.primary }]}>
+            BUGÜNKÜ YOĞUNLUK 🕒
+          </Text>
           <BarChart
             data={{
               labels: ['08-10', '10-12', '12-14', '14-16', '16-18', '18+'],
@@ -216,32 +248,46 @@ const AdminAnalyticsScreen = () => {
             height={220}
             yAxisLabel=""
             chartConfig={{
-              backgroundColor: '#1E1E1E',
-              backgroundGradientFrom: '#1E1E1E',
-              backgroundGradientTo: '#1E1E1E',
+              backgroundColor: theme.card, // 🔥 Dinamik
+              backgroundGradientFrom: theme.card, // 🔥 Dinamik
+              backgroundGradientTo: theme.card, // 🔥 Dinamik
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(255, 140, 0, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              labelColor: (opacity = 1) =>
+                isDark
+                  ? `rgba(255, 255, 255, ${opacity})`
+                  : `rgba(0, 0, 0, ${opacity})`, // 🔥 Dinamik Label
             }}
             style={{ borderRadius: 16 }}
           />
         </View>
 
         {/* SON SATIŞLAR */}
-        <View style={styles.listCard}>
-          <Text style={styles.cardTitle}>SON İŞLEMLER 🛒</Text>
+        <View
+          style={[
+            styles.listCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.cardTitle, { color: theme.primary }]}>
+            SON İŞLEMLER 🛒
+          </Text>
           {recentSales.map((item, index) => (
-            <View key={index} style={styles.saleRow}>
+            <View
+              key={index}
+              style={[styles.saleRow, { borderBottomColor: theme.border }]}
+            >
               <View>
                 <Text
                   style={[
                     styles.saleProduct,
+                    { color: theme.text },
                     item.isMembership && { color: '#007AFF' },
                   ]}
                 >
                   {item.name}
                 </Text>
-                <Text style={styles.saleUser}>
+                <Text style={[styles.saleUser, { color: theme.subText }]}>
                   {item.buyer} • {item.date}
                 </Text>
               </View>
@@ -255,17 +301,15 @@ const AdminAnalyticsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 15 },
+  container: { flex: 1, padding: 15 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -282,44 +326,37 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   kpiLabel: {
-    color: '#888',
     fontSize: 10,
     fontWeight: 'bold',
     marginBottom: 5,
   },
-  kpiValue: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  kpiValue: { fontSize: 20, fontWeight: 'bold' },
   chartCard: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 15,
     padding: 15,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#333',
   },
   cardTitle: {
-    color: '#FF8C00',
     fontWeight: 'bold',
     fontSize: 16,
     marginBottom: 5,
   },
   listCard: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 15,
     padding: 15,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#333',
   },
   saleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
     paddingVertical: 10,
   },
-  saleProduct: { color: 'white', fontWeight: 'bold' },
-  saleUser: { color: '#888', fontSize: 12 },
+  saleProduct: { fontWeight: 'bold' },
+  saleUser: { fontSize: 12 },
   salePrice: { color: '#4CD964', fontWeight: 'bold', fontSize: 16 },
 });
 

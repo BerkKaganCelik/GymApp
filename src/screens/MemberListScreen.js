@@ -14,11 +14,17 @@ import {
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const MemberListScreen = ({ navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
-  const [activeFilter, setActiveFilter] = useState('Tümü'); // Tümü, Aktif, Pasif/Biten, Riskli
+  const [activeFilter, setActiveFilter] = useState('Tümü'); // Filtre isimlerini aşağıda çevireceğiz
 
   // İstatistikler
   const [stats, setStats] = useState({
@@ -28,14 +34,11 @@ const MemberListScreen = ({ navigation }) => {
   });
 
   useEffect(() => {
-    // 🔥 ÖNEMLİ DÜZELTME:
     // Firestore'da 'orderBy' veya 'where' kullanınca, o alanı eksik olan üyeler LİSTEDEN SİLİNİR.
     // Bu yüzden burada "saf" veri çekiyoruz ve filtrelemeyi aşağıda yapıyoruz.
-    // Böylece verisi eksik olan üyeleri de görebilirsin.
 
     const subscriber = firestore()
       .collection('users')
-      // .where('role', '==', 'member') // İstersen bunu açabilirsin ama şimdilik herkesi gör.
       .onSnapshot(
         querySnapshot => {
           if (!querySnapshot) {
@@ -50,15 +53,13 @@ const MemberListScreen = ({ navigation }) => {
           querySnapshot.forEach(doc => {
             const data = doc.data();
 
-            // Sadece 'role'ü member veya student olanları veya rolü boş olanları alalım (Gereksiz adminleri gizlemek için)
-            // Eğer adminleri de görmek istersen bu if bloğunu kaldır.
             if (
               data.role &&
               data.role !== 'member' &&
               data.role !== 'student' &&
               data.role !== 'admin'
             ) {
-              // Başka garip rolleri almayalım (opsiyonel)
+              // Başka garip rolleri almayalım
             }
 
             // 1. Tarih Verisi Kontrolü (Çökme önleyici)
@@ -80,7 +81,6 @@ const MemberListScreen = ({ navigation }) => {
               ...data,
               key: doc.id,
               isExpired: !isActive,
-              // Tarih yoksa sıralamada hata vermesin diye null kontrolü
               createdAtObj:
                 data.createdAt && data.createdAt.toDate
                   ? data.createdAt.toDate()
@@ -90,15 +90,14 @@ const MemberListScreen = ({ navigation }) => {
                 : 0,
               displayDate: hasDate
                 ? endDate.toLocaleDateString('tr-TR')
-                : 'Tarih Yok',
-              // Eğer ismi yoksa belli olsun
-              fullName: data.fullName || 'İsimsiz Üye',
-              packageName: data.packageName || 'Paket Seçilmemiş',
+                : t.noDate || 'Tarih Yok',
+              fullName: data.fullName || t.unnamedMember || 'İsimsiz Üye',
+              packageName:
+                data.packageName || t.noPackage || 'Paket Seçilmemiş',
             });
           });
 
           // 3. Javascript ile Sıralama (En yeniden en eskiye)
-          // Bu yöntem sayesinde 'createdAt' alanı olmayanlar gizlenmez, sadece en alta gider.
           users.sort((a, b) => b.createdAtObj - a.createdAtObj);
 
           setMembers(users);
@@ -107,7 +106,10 @@ const MemberListScreen = ({ navigation }) => {
         },
         error => {
           console.error('Veri Çekme Hatası:', error);
-          Alert.alert('Hata', 'Veriler alınırken bir sorun oluştu.');
+          Alert.alert(
+            t.error || 'Hata',
+            t.fetchError || 'Veriler alınırken bir sorun oluştu.',
+          );
           setLoading(false);
         },
       );
@@ -138,25 +140,36 @@ const MemberListScreen = ({ navigation }) => {
 
   // --- AKSİYONLAR ---
   const openWhatsApp = phone => {
-    if (!phone) return Alert.alert('Hata', 'Numara kayıtlı değil.');
+    if (!phone)
+      return Alert.alert(
+        t.error || 'Hata',
+        t.noPhone || 'Numara kayıtlı değil.',
+      );
     let number = phone.replace(/[^\d]/g, '');
     if (!number.startsWith('90')) number = '90' + number;
     Linking.openURL(`whatsapp://send?phone=${number}`);
   };
 
   const callPhone = phone => {
-    if (!phone) return Alert.alert('Hata', 'Numara kayıtlı değil.');
+    if (!phone)
+      return Alert.alert(
+        t.error || 'Hata',
+        t.noPhone || 'Numara kayıtlı değil.',
+      );
     Linking.openURL(`tel:${phone}`);
   };
 
   const handleDelete = (userId, userName) => {
     Alert.alert(
-      'Üyeyi Sil 🗑️',
-      `${userName} isimli üyeyi silmek istediğinize emin misiniz?`,
+      t.deleteMemberTitle || 'Üyeyi Sil 🗑️',
+      `${userName} ${
+        t.deleteMemberConfirm ||
+        'isimli üyeyi silmek istediğinize emin misiniz?'
+      }`,
       [
-        { text: 'Vazgeç', style: 'cancel' },
+        { text: t.cancel || 'Vazgeç', style: 'cancel' },
         {
-          text: 'SİL',
+          text: t.delete || 'SİL',
           style: 'destructive',
           onPress: () => {
             firestore()
@@ -164,7 +177,7 @@ const MemberListScreen = ({ navigation }) => {
               .doc(userId)
               .delete()
               .then(() => console.log('Silindi'))
-              .catch(err => Alert.alert('Hata', err.message));
+              .catch(err => Alert.alert(t.error || 'Hata', err.message));
           },
         },
       ],
@@ -173,10 +186,15 @@ const MemberListScreen = ({ navigation }) => {
 
   // --- LİSTE ELEMANI ---
   const renderItem = ({ item }) => {
-    const statusColor = item.isExpired ? '#FF3B30' : '#4CD964'; // Kırmızı veya Yeşil
+    const statusColor = item.isExpired ? theme.danger : theme.success;
 
     return (
-      <View style={styles.card}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
         {/* Sol Renkli Şerit */}
         <View style={[styles.statusStrip, { backgroundColor: statusColor }]} />
 
@@ -189,7 +207,12 @@ const MemberListScreen = ({ navigation }) => {
             }
           >
             {/* Avatar */}
-            <View style={styles.avatarContainer}>
+            <View
+              style={[
+                styles.avatarContainer,
+                { backgroundColor: theme.inputBg },
+              ]}
+            >
               {item.profileImage ? (
                 <Image
                   source={{ uri: item.profileImage }}
@@ -202,13 +225,19 @@ const MemberListScreen = ({ navigation }) => {
 
             {/* Bilgiler */}
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.name}>{item.fullName}</Text>
+              <Text style={[styles.name, { color: theme.text }]}>
+                {item.fullName}
+              </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.subText}>{item.packageName}</Text>
+                <Text style={[styles.subText, { color: theme.subText }]}>
+                  {item.packageName}
+                </Text>
                 {/* Risk Rozeti */}
                 {item.daysLeft <= 5 && item.daysLeft > 0 && (
                   <View style={styles.warningBadge}>
-                    <Text style={styles.warningText}>{item.daysLeft} Gün!</Text>
+                    <Text style={styles.warningText}>
+                      {item.daysLeft} {t.days || 'Gün'}!
+                    </Text>
                   </View>
                 )}
               </View>
@@ -222,13 +251,13 @@ const MemberListScreen = ({ navigation }) => {
               ]}
             >
               <Text style={[styles.statusText, { color: statusColor }]}>
-                {item.isExpired ? 'PASİF' : 'AKTİF'}
+                {item.isExpired ? t.passive || 'PASİF' : t.active || 'AKTİF'}
               </Text>
             </View>
           </TouchableOpacity>
 
           {/* Alt Butonlar */}
-          <View style={styles.actionRow}>
+          <View style={[styles.actionRow, { borderTopColor: theme.border }]}>
             <View style={{ flexDirection: 'row' }}>
               <TouchableOpacity
                 onPress={() => openWhatsApp(item.phone)}
@@ -244,7 +273,7 @@ const MemberListScreen = ({ navigation }) => {
                   { backgroundColor: '#007AFF', marginLeft: 8 },
                 ]}
               >
-                <Text style={styles.btnText}>📞 Ara</Text>
+                <Text style={styles.btnText}>📞 {t.call || 'Ara'}</Text>
               </TouchableOpacity>
 
               {/* SİLME BUTONU */}
@@ -252,14 +281,16 @@ const MemberListScreen = ({ navigation }) => {
                 onPress={() => handleDelete(item.key, item.fullName)}
                 style={[
                   styles.miniBtn,
-                  { backgroundColor: '#FF3B30', marginLeft: 8 },
+                  { backgroundColor: theme.danger, marginLeft: 8 },
                 ]}
               >
                 <Text style={styles.btnText}>🗑️</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.expiryDate}>Bitiş: {item.displayDate}</Text>
+            <Text style={[styles.expiryDate, { color: theme.subText }]}>
+              {t.end || 'Bitiş'}: {item.displayDate}
+            </Text>
           </View>
         </View>
       </View>
@@ -268,64 +299,100 @@ const MemberListScreen = ({ navigation }) => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF8C00" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
 
+  // Filtre etiketlerini dile göre ayarlayalım
+  const filterLabels = {
+    Tümü: t.all || 'Tümü',
+    Aktif: t.active || 'Aktif',
+    'Pasif/Biten': t.passive || 'Pasif/Biten',
+    Riskli: t.risky || 'Riskli',
+  };
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
       {/* 1. KOKPİT (İstatistikler) */}
-      <View style={styles.dashboard}>
+      <View
+        style={[
+          styles.dashboard,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
         <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{stats.total}</Text>
-          <Text style={styles.statLabel}>TOPLAM</Text>
+          <Text style={[styles.statNumber, { color: theme.text }]}>
+            {stats.total}
+          </Text>
+          <Text style={[styles.statLabel, { color: theme.subText }]}>
+            {t.total || 'TOPLAM'}
+          </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
         <View style={styles.statBox}>
-          <Text style={[styles.statNumber, { color: '#4CD964' }]}>
+          <Text style={[styles.statNumber, { color: theme.success }]}>
             {stats.active}
           </Text>
-          <Text style={styles.statLabel}>AKTİF</Text>
+          <Text style={[styles.statLabel, { color: theme.subText }]}>
+            {t.active || 'AKTİF'}
+          </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
         <View style={styles.statBox}>
-          <Text style={[styles.statNumber, { color: '#FF3B30' }]}>
+          <Text style={[styles.statNumber, { color: theme.danger }]}>
             {stats.expired}
           </Text>
-          <Text style={styles.statLabel}>BİTEN</Text>
+          <Text style={[styles.statLabel, { color: theme.subText }]}>
+            {t.expired || 'BİTEN'}
+          </Text>
         </View>
       </View>
 
       {/* 2. ARAMA ve SEKMELER */}
       <View style={styles.searchSection}>
         <TextInput
-          style={styles.searchInput}
-          placeholder="İsim veya Telefon ara..."
-          placeholderTextColor="#666"
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: theme.card,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
+          placeholder={t.searchPlaceholder || 'İsim veya Telefon ara...'}
+          placeholderTextColor={theme.subText}
           value={searchText}
           onChangeText={setSearchText}
         />
 
         <View style={styles.filterRow}>
-          {['Tümü', 'Aktif', 'Pasif/Biten', 'Riskli'].map(filter => (
+          {['Tümü', 'Aktif', 'Pasif/Biten', 'Riskli'].map(filterKey => (
             <TouchableOpacity
-              key={filter}
-              onPress={() => setActiveFilter(filter)}
+              key={filterKey}
+              onPress={() => setActiveFilter(filterKey)}
               style={[
                 styles.filterChip,
-                activeFilter === filter && styles.activeChip,
+                { backgroundColor: theme.inputBg, borderColor: theme.border },
+                activeFilter === filterKey && {
+                  backgroundColor: theme.primary,
+                  borderColor: theme.primary,
+                },
               ]}
             >
               <Text
                 style={[
                   styles.chipText,
-                  activeFilter === filter && { color: '#000' },
+                  { color: theme.subText },
+                  activeFilter === filterKey && { color: 'white' }, // Seçili olunca beyaz
                 ]}
               >
-                {filter}
+                {filterLabels[filterKey]}
               </Text>
             </TouchableOpacity>
           ))}
@@ -341,8 +408,8 @@ const MemberListScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={{ alignItems: 'center', marginTop: 50 }}>
             <Text style={{ fontSize: 30 }}>🔍</Text>
-            <Text style={{ color: '#666', marginTop: 10 }}>
-              Üye bulunamadı.
+            <Text style={{ color: theme.subText, marginTop: 10 }}>
+              {t.noMemberFound || 'Üye bulunamadı.'}
             </Text>
           </View>
         }
@@ -352,41 +419,31 @@ const MemberListScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 15 },
+  container: { flex: 1, padding: 15 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Dashboard
   dashboard: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 15,
     marginBottom: 15,
     justifyContent: 'space-around',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
   },
   statBox: { alignItems: 'center' },
-  statNumber: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  statLabel: { color: '#888', fontSize: 10, fontWeight: 'bold', marginTop: 2 },
-  divider: { width: 1, height: 30, backgroundColor: '#333' },
-
-  // Arama & Filtre
+  statNumber: { fontSize: 20, fontWeight: 'bold' },
+  statLabel: { fontSize: 10, fontWeight: 'bold', marginTop: 2 },
+  divider: { width: 1, height: 30 },
   searchSection: { marginBottom: 15 },
   searchInput: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 8,
     padding: 12,
-    color: 'white',
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#333',
     marginBottom: 10,
   },
   filterRow: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -394,41 +451,30 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 20,
-    backgroundColor: '#222',
     borderWidth: 1,
-    borderColor: '#333',
   },
-  activeChip: { backgroundColor: '#FF8C00', borderColor: '#FF8C00' },
-  chipText: { color: '#888', fontSize: 11, fontWeight: 'bold' },
-
-  // Kart Tasarımı
+  chipText: { fontSize: 11, fontWeight: 'bold' },
   card: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     marginBottom: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#222',
   },
   statusStrip: { width: 6, height: '100%' },
   cardContent: { flex: 1, padding: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-
   avatarContainer: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
   avatar: { width: '100%', height: '100%' },
-
-  name: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-  subText: { color: '#888', fontSize: 12 },
-
+  name: { fontSize: 16, fontWeight: 'bold' },
+  subText: { fontSize: 12 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   statusText: { fontSize: 10, fontWeight: 'bold' },
   warningBadge: {
@@ -439,8 +485,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   warningText: { color: 'white', fontSize: 9, fontWeight: 'bold' },
-
-  // Butonlar
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -448,7 +492,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
   },
   miniBtn: {
     paddingHorizontal: 10,
@@ -458,7 +501,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
-  expiryDate: { color: '#666', fontSize: 11, fontStyle: 'italic' },
+  expiryDate: { fontSize: 11, fontStyle: 'italic' },
 });
 
 export default MemberListScreen;

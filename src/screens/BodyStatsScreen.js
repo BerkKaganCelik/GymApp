@@ -16,16 +16,21 @@ import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { LineChart } from 'react-native-chart-kit';
 
-const BodyStatsScreen = () => {
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
+const BodyStatsScreen = ({ navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState(''); // Boy genelde sabit kalır ama güncellenebilir
+  const [height, setHeight] = useState('');
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const user = auth().currentUser;
   const screenWidth = Dimensions.get('window').width;
 
   useEffect(() => {
-    // Verileri tarihe göre (Eskiden yeniye) çekiyoruz ki grafik düzgün çizilsin
     const sub = firestore()
       .collection('users')
       .doc(user.uid)
@@ -43,7 +48,6 @@ const BodyStatsScreen = () => {
           );
         setStats(data);
 
-        // Son kayıttaki boy bilgisini otomatik getir (tekrar yazdırmamak için)
         if (data.length > 0) setHeight(data[data.length - 1].height);
 
         setLoading(false);
@@ -58,9 +62,9 @@ const BodyStatsScreen = () => {
 
   const getBMIStatus = bmi => {
     if (bmi < 18.5) return { text: 'Zayıf', color: '#3498db' };
-    if (bmi < 25) return { text: 'Normal', color: '#4CD964' };
+    if (bmi < 25) return { text: 'Normal', color: theme.success }; // Dinamik renk
     if (bmi < 30) return { text: 'Fazla Kilolu', color: '#FF9500' };
-    return { text: 'Obez', color: '#FF3B30' };
+    return { text: 'Obez', color: theme.danger }; // Dinamik renk
   };
 
   const handleSave = async () => {
@@ -86,7 +90,7 @@ const BodyStatsScreen = () => {
 
   const deleteStat = id => {
     Alert.alert('Sil', 'Bu ölçümü silmek istiyor musun?', [
-      { text: 'Vazgeç' },
+      { text: t.cancel, style: 'cancel' }, // 🔥 Çeviri
       {
         text: 'Sil',
         onPress: () =>
@@ -100,10 +104,8 @@ const BodyStatsScreen = () => {
     ]);
   };
 
-  // Grafik Verilerini Hazırla
   const getChartData = () => {
     if (stats.length === 0) return null;
-    // Son 6 ölçümü göster (Grafik sıkışmasın)
     const recentStats = stats.slice(-6);
     return {
       labels: recentStats.map(s =>
@@ -115,8 +117,8 @@ const BodyStatsScreen = () => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#FF8C00" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} />
       </View>
     );
 
@@ -125,37 +127,49 @@ const BodyStatsScreen = () => {
   const chartData = getChartData();
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
       <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
-        <Text style={styles.header}>GELİŞİM ANALİZİ 📈</Text>
+        {/* Başlık Dinamik */}
+        <Text style={[styles.header, { color: theme.text }]}>
+          {t.progress || 'GELİŞİM ANALİZİ'} 📈
+        </Text>
 
         {/* 1. GRAFİK ALANI */}
         {chartData ? (
           <View style={styles.chartContainer}>
-            <Text style={styles.chartTitle}>Kilo Değişim Grafiği</Text>
+            <Text style={[styles.chartTitle, { color: theme.subText }]}>
+              Kilo Değişim Grafiği
+            </Text>
             <LineChart
               data={chartData}
               width={screenWidth - 40}
               height={220}
               yAxisSuffix=" kg"
               chartConfig={{
-                backgroundColor: '#1E1E1E',
-                backgroundGradientFrom: '#1E1E1E',
-                backgroundGradientTo: '#1E1E1E',
+                backgroundColor: theme.card, // 🔥 Dinamik
+                backgroundGradientFrom: theme.card, // 🔥 Dinamik
+                backgroundGradientTo: theme.card, // 🔥 Dinamik
                 decimalPlaces: 1,
-                color: (opacity = 1) => `rgba(255, 140, 0, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                color: (opacity = 1) => theme.primary, // 🔥 Dinamik (Turuncu)
+                labelColor: (opacity = 1) => theme.text, // 🔥 Dinamik yazı
                 style: { borderRadius: 16 },
-                propsForDots: { r: '6', strokeWidth: '2', stroke: '#FF9500' },
+                propsForDots: {
+                  r: '6',
+                  strokeWidth: '2',
+                  stroke: theme.primary,
+                },
               }}
               bezier
               style={{ marginVertical: 8, borderRadius: 16 }}
             />
           </View>
         ) : (
-          <View style={styles.emptyBox}>
-            <Text style={{ color: '#666' }}>
+          <View style={[styles.emptyBox, { borderColor: theme.border }]}>
+            <Text style={{ color: theme.subText }}>
               Grafik için en az 1 veri girin.
             </Text>
           </View>
@@ -164,20 +178,32 @@ const BodyStatsScreen = () => {
         {/* 2. ÖZET KARTLARI */}
         {lastStat && (
           <View style={styles.summaryRow}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.sumLabel}>Son Kilo</Text>
-              <Text style={styles.sumValue}>
+            <View
+              style={[
+                styles.summaryCard,
+                { backgroundColor: theme.card, borderLeftColor: theme.primary },
+              ]}
+            >
+              <Text style={[styles.sumLabel, { color: theme.subText }]}>
+                Son Kilo
+              </Text>
+              <Text style={[styles.sumValue, { color: theme.text }]}>
                 {lastStat.weight} <Text style={{ fontSize: 14 }}>kg</Text>
               </Text>
             </View>
             <View
-              style={[styles.summaryCard, { borderLeftColor: bmiInfo.color }]}
+              style={[
+                styles.summaryCard,
+                { backgroundColor: theme.card, borderLeftColor: bmiInfo.color },
+              ]}
             >
-              <Text style={styles.sumLabel}>VKI Durumu</Text>
+              <Text style={[styles.sumLabel, { color: theme.subText }]}>
+                VKI Durumu
+              </Text>
               <Text style={[styles.sumValue, { color: bmiInfo.color }]}>
                 {bmiInfo.text}
               </Text>
-              <Text style={{ color: '#666', fontSize: 10 }}>
+              <Text style={{ color: theme.subText, fontSize: 10 }}>
                 Değer: {lastStat.bmi}
               </Text>
             </View>
@@ -185,40 +211,61 @@ const BodyStatsScreen = () => {
         )}
 
         {/* 3. VERİ GİRİŞİ */}
-        <Text style={styles.sectionTitle}>YENİ ÖLÇÜM EKLE</Text>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+          {t.addMeasurement || 'YENİ ÖLÇÜM EKLE'}
+        </Text>
         <View style={styles.inputRow}>
           <TextInput
-            style={[styles.input, { flex: 1, marginRight: 10 }]}
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                marginRight: 10,
+                backgroundColor: theme.inputBg,
+                color: theme.text,
+              },
+            ]}
             placeholder="Kilo (kg)"
-            placeholderTextColor="#666"
+            placeholderTextColor={theme.subText}
             keyboardType="numeric"
             value={weight}
             onChangeText={setWeight}
           />
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={[
+              styles.input,
+              { flex: 1, backgroundColor: theme.inputBg, color: theme.text },
+            ]}
             placeholder="Boy (cm)"
-            placeholderTextColor="#666"
+            placeholderTextColor={theme.subText}
             keyboardType="numeric"
             value={height}
             onChangeText={setHeight}
           />
-          <TouchableOpacity style={styles.addBtn} onPress={handleSave}>
-            <Text style={{ fontSize: 20 }}>➕</Text>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: theme.primary }]}
+            onPress={handleSave}
+          >
+            <Text style={{ fontSize: 20, color: 'white' }}>➕</Text>
           </TouchableOpacity>
         </View>
 
         {/* 4. GEÇMİŞ LİSTESİ */}
-        <Text style={styles.sectionTitle}>GEÇMİŞ KAYITLAR</Text>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+          {t.history || 'GEÇMİŞ KAYITLAR'}
+        </Text>
         {stats
           .slice()
           .reverse()
           .map(item => (
-            <View key={item.key} style={styles.historyRow}>
-              <Text style={{ color: '#888', width: 80 }}>
+            <View
+              key={item.key}
+              style={[styles.historyRow, { backgroundColor: theme.card }]}
+            >
+              <Text style={{ color: theme.subText, width: 80 }}>
                 {item.dateObj ? item.dateObj.toLocaleDateString() : '-'}
               </Text>
-              <Text style={{ color: 'white', fontWeight: 'bold', flex: 1 }}>
+              <Text style={{ color: theme.text, fontWeight: 'bold', flex: 1 }}>
                 {item.weight} kg
               </Text>
               <Text
@@ -241,34 +288,29 @@ const BodyStatsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
     textAlign: 'center',
     marginBottom: 20,
   },
-
   chartContainer: { alignItems: 'center', marginBottom: 20 },
-  chartTitle: { color: '#888', marginBottom: 10, fontSize: 12 },
+  chartTitle: { marginBottom: 10, fontSize: 12 },
   emptyBox: {
     height: 150,
     justifyContent: 'center',
     alignItems: 'center',
     borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: '#333',
     borderRadius: 10,
     marginBottom: 20,
   },
-
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -276,41 +318,32 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     width: '48%',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
   },
-  sumLabel: { color: '#888', fontSize: 12, marginBottom: 5 },
-  sumValue: { color: 'white', fontSize: 22, fontWeight: 'bold' },
-
+  sumLabel: { fontSize: 12, marginBottom: 5 },
+  sumValue: { fontSize: 22, fontWeight: 'bold' },
   sectionTitle: {
-    color: '#FF8C00',
     fontWeight: 'bold',
     marginBottom: 10,
     marginTop: 10,
   },
   inputRow: { flexDirection: 'row', marginBottom: 20 },
   input: {
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 10,
-    color: 'white',
   },
   addBtn: {
-    backgroundColor: '#FF8C00',
     width: 50,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 10,
     marginLeft: 10,
   },
-
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     marginBottom: 5,
     borderRadius: 8,

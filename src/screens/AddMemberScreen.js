@@ -13,11 +13,13 @@ import {
   Platform,
 } from 'react-native';
 
-// ✨ DÜZELTME: 'functions' paketini kaldırdık. Standart Auth ve Firestore kullanıyoruz.
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import { launchImageLibrary } from 'react-native-image-picker';
+
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
 
 const MEMBERSHIP_PACKAGES = [
   { id: 'p1', name: 'Başlangıç (1 Ay)', months: 1, price: 1500 },
@@ -27,6 +29,9 @@ const MEMBERSHIP_PACKAGES = [
 ];
 
 const AddMemberScreen = ({ navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,7 +59,6 @@ const AddMemberScreen = ({ navigation }) => {
     setCustomPrice(pkg.price.toString());
   };
 
-  // --- KAYIT İŞLEMİ (STANDART FIREBASE) ---
   const handleRegister = async () => {
     if (!name || !email || !password || !phone) {
       Alert.alert('Eksik Bilgi', 'Ad, Email, Şifre ve Telefon zorunludur.');
@@ -68,7 +72,6 @@ const AddMemberScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      // 1. Kullanıcıyı Firebase Authentication'a Kaydet
       const userCredential = await auth().createUserWithEmailAndPassword(
         email,
         password,
@@ -79,7 +82,6 @@ const AddMemberScreen = ({ navigation }) => {
 
       let profileImageUrl = null;
 
-      // 2. Fotoğraf Yükleme (Varsa)
       if (imageUri) {
         const filename = `profiles/${newUserId}.jpg`;
         const uploadUri =
@@ -89,8 +91,6 @@ const AddMemberScreen = ({ navigation }) => {
         profileImageUrl = await storage().ref(filename).getDownloadURL();
       }
 
-      // 3. Kullanıcı Bilgilerini Firestore'a Kaydet
-      // (functions kullanmak yerine doğrudan veritabanına yazıyoruz)
       const membershipEndDate = new Date();
       membershipEndDate.setMonth(
         membershipEndDate.getMonth() + selectedPackage.months,
@@ -101,7 +101,7 @@ const AddMemberScreen = ({ navigation }) => {
         email: email,
         phone: phone,
         gender: gender,
-        role: 'member', // Rolünü üye olarak belirle
+        role: 'member',
         emergencyContact: emergencyContact,
         healthNotes: healthNotes,
         membershipMonths: selectedPackage.months,
@@ -110,7 +110,7 @@ const AddMemberScreen = ({ navigation }) => {
         joinDate: firestore.FieldValue.serverTimestamp(),
         membershipEndDate: membershipEndDate.toISOString(),
         profileImage: profileImageUrl,
-        dietProgram: null, // Başlangıçta diyet programı yok
+        dietProgram: null,
       });
 
       Alert.alert('Başarılı 🎉', `${name} adlı üye başarıyla kaydedildi!`, [
@@ -133,16 +133,25 @@ const AddMemberScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
       <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
-        <Text style={styles.header}>YENİ ÜYE KAYDI 📝</Text>
+        {/* Başlık Rengi Dinamik */}
+        <Text style={[styles.header, { color: theme.text }]}>
+          {t.addMember}
+        </Text>
 
         {/* FOTOĞRAF ALANI */}
         <View style={{ alignItems: 'center', marginBottom: 20 }}>
           <TouchableOpacity
             onPress={selectImage}
-            style={styles.avatarContainer}
+            style={[
+              styles.avatarContainer,
+              { backgroundColor: theme.inputBg, borderColor: theme.primary },
+            ]}
           >
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={styles.avatar} />
@@ -150,17 +159,26 @@ const AddMemberScreen = ({ navigation }) => {
               <Text style={styles.avatarText}>📷</Text>
             )}
           </TouchableOpacity>
-          <Text style={{ color: '#666', fontSize: 12, marginTop: 5 }}>
-            Fotoğraf Seçmek İçin Dokun
+          <Text style={{ color: theme.subText, fontSize: 12, marginTop: 5 }}>
+            {t.changePhoto || 'Fotoğraf Seçmek İçin Dokun'}
           </Text>
         </View>
 
         {/* KİŞİSEL BİLGİLER */}
-        <Text style={styles.sectionTitle}>KİŞİSEL BİLGİLER</Text>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+          KİŞİSEL BİLGİLER
+        </Text>
         <TextInput
-          style={styles.input}
-          placeholder="Ad Soyad"
-          placeholderTextColor="#666"
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.card,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
+          placeholder={t.fullName}
+          placeholderTextColor={theme.subText}
           value={name}
           onChangeText={setName}
         />
@@ -169,14 +187,19 @@ const AddMemberScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.genderBtn,
-              gender === 'Erkek' && styles.genderBtnSelected,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              gender === 'Erkek' && {
+                backgroundColor: theme.primary,
+                borderColor: theme.primary,
+              },
             ]}
             onPress={() => setGender('Erkek')}
           >
             <Text
               style={[
                 styles.genderText,
-                gender === 'Erkek' && { color: 'black' },
+                { color: theme.text },
+                gender === 'Erkek' && { color: 'black' }, // Seçili olunca siyah kalsın
               ]}
             >
               ERKEK 🚹
@@ -185,13 +208,18 @@ const AddMemberScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.genderBtn,
-              gender === 'Kadın' && styles.genderBtnSelected,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              gender === 'Kadın' && {
+                backgroundColor: theme.primary,
+                borderColor: theme.primary,
+              },
             ]}
             onPress={() => setGender('Kadın')}
           >
             <Text
               style={[
                 styles.genderText,
+                { color: theme.text },
                 gender === 'Kadın' && { color: 'black' },
               ]}
             >
@@ -201,67 +229,114 @@ const AddMemberScreen = ({ navigation }) => {
         </View>
 
         <TextInput
-          style={styles.input}
-          placeholder="Telefon (5XX...)"
-          placeholderTextColor="#666"
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.card,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
+          placeholder={`${t.phone} (5XX...)`}
+          placeholderTextColor={theme.subText}
           keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
         />
 
         {/* GİRİŞ BİLGİLERİ */}
-        <Text style={styles.sectionTitle}>GİRİŞ BİLGİLERİ</Text>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+          GİRİŞ BİLGİLERİ
+        </Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.card,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
           placeholder="E-mail Adresi"
-          placeholderTextColor="#666"
+          placeholderTextColor={theme.subText}
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
           onChangeText={setEmail}
         />
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.card,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
           placeholder="Şifre (Min 6 Karakter)"
-          placeholderTextColor="#666"
+          placeholderTextColor={theme.subText}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
 
         {/* SAĞLIK VE ACİL DURUM */}
-        <Text style={styles.sectionTitle}>SAĞLIK & GÜVENLİK</Text>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+          SAĞLIK & GÜVENLİK
+        </Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.card,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
           placeholder="Acil Durumda Aranacak Kişi"
-          placeholderTextColor="#666"
+          placeholderTextColor={theme.subText}
           value={emergencyContact}
           onChangeText={setEmergencyContact}
         />
         <TextInput
-          style={[styles.input, { height: 60 }]}
+          style={[
+            styles.input,
+            {
+              height: 60,
+              backgroundColor: theme.card,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
           placeholder="Sağlık Notları"
-          placeholderTextColor="#666"
+          placeholderTextColor={theme.subText}
           multiline
           value={healthNotes}
           onChangeText={setHealthNotes}
         />
 
         {/* PAKET SEÇİMİ */}
-        <Text style={styles.sectionTitle}>ÜYELİK PAKETİ SEÇİN 💳</Text>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+          ÜYELİK PAKETİ SEÇİN 💳
+        </Text>
         <View style={styles.packageGrid}>
           {MEMBERSHIP_PACKAGES.map(pkg => (
             <TouchableOpacity
               key={pkg.id}
               style={[
                 styles.pkgCard,
-                selectedPackage?.id === pkg.id && styles.pkgCardSelected,
+                { backgroundColor: theme.card, borderColor: theme.border },
+                selectedPackage?.id === pkg.id && {
+                  backgroundColor: theme.success,
+                  borderColor: theme.success,
+                },
               ]}
               onPress={() => handleSelectPackage(pkg)}
             >
               <Text
                 style={[
                   styles.pkgName,
+                  { color: theme.text },
                   selectedPackage?.id === pkg.id && { color: 'black' },
                 ]}
               >
@@ -270,6 +345,7 @@ const AddMemberScreen = ({ navigation }) => {
               <Text
                 style={[
                   styles.pkgPrice,
+                  { color: theme.primary },
                   selectedPackage?.id === pkg.id && { color: 'black' },
                 ]}
               >
@@ -281,20 +357,32 @@ const AddMemberScreen = ({ navigation }) => {
 
         {/* FİYAT MÜDAHALESİ */}
         {selectedPackage && (
-          <View style={styles.priceContainer}>
-            <Text style={{ color: '#888', marginBottom: 5 }}>
+          <View
+            style={[
+              styles.priceContainer,
+              { backgroundColor: theme.inputBg, borderColor: theme.border },
+            ]}
+          >
+            <Text style={{ color: theme.subText, marginBottom: 5 }}>
               Tahsil Edilecek Tutar:
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TextInput
-                style={styles.priceInput}
+                style={[
+                  styles.priceInput,
+                  {
+                    backgroundColor: theme.bg,
+                    color: theme.success,
+                    borderColor: theme.border,
+                  },
+                ]}
                 value={customPrice}
                 onChangeText={setCustomPrice}
                 keyboardType="numeric"
               />
               <Text
                 style={{
-                  color: 'white',
+                  color: theme.text,
                   fontSize: 20,
                   marginLeft: 10,
                   fontWeight: 'bold',
@@ -307,14 +395,14 @@ const AddMemberScreen = ({ navigation }) => {
         )}
 
         <TouchableOpacity
-          style={styles.saveButton}
+          style={[styles.saveButton, { backgroundColor: theme.primary }]}
           onPress={handleRegister}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="black" />
           ) : (
-            <Text style={styles.saveButtonText}>KAYDI TAMAMLA ✅</Text>
+            <Text style={styles.saveButtonText}>{t.save}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -323,16 +411,14 @@ const AddMemberScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
     marginBottom: 20,
     textAlign: 'center',
   },
   sectionTitle: {
-    color: '#FF8C00',
     fontSize: 12,
     fontWeight: 'bold',
     marginTop: 20,
@@ -340,13 +426,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   input: {
-    backgroundColor: '#1E1E1E',
-    color: 'white',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#333',
   },
   row: {
     flexDirection: 'row',
@@ -357,11 +440,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#2C2C2C',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FF8C00',
     overflow: 'hidden',
   },
   avatar: { width: '100%', height: '100%' },
@@ -369,15 +450,12 @@ const styles = StyleSheet.create({
   genderBtn: {
     flex: 1,
     padding: 12,
-    backgroundColor: '#1E1E1E',
     borderRadius: 8,
     marginHorizontal: 5,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
   },
-  genderBtnSelected: { backgroundColor: '#FF8C00', borderColor: '#FF8C00' },
-  genderText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  genderText: { fontWeight: 'bold', fontSize: 12 },
   packageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -385,28 +463,21 @@ const styles = StyleSheet.create({
   },
   pkgCard: {
     width: '48%',
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     borderWidth: 2,
-    borderColor: '#333',
     alignItems: 'center',
   },
-  pkgCardSelected: { backgroundColor: '#4CD964', borderColor: '#4CD964' },
-  pkgName: { color: 'white', fontWeight: 'bold', marginBottom: 5 },
-  pkgPrice: { color: '#FF8C00', fontWeight: 'bold', fontSize: 16 },
+  pkgName: { fontWeight: 'bold', marginBottom: 5 },
+  pkgPrice: { fontWeight: 'bold', fontSize: 16 },
   priceContainer: {
     marginTop: 10,
-    backgroundColor: '#222',
     padding: 15,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#444',
   },
   priceInput: {
-    backgroundColor: '#111',
-    color: '#4CD964',
     fontSize: 24,
     fontWeight: 'bold',
     padding: 10,
@@ -414,10 +485,8 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
     borderWidth: 1,
-    borderColor: '#333',
   },
   saveButton: {
-    backgroundColor: '#FF8C00',
     padding: 18,
     borderRadius: 12,
     alignItems: 'center',

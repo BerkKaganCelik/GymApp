@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,115 +9,23 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 
-// --- GENİŞLETİLMİŞ PROFESYONEL VERİ TABANI (FULL LIBRARY) ---
-const EXERCISE_DB = [
-  // --- LEGS (BACAK) ---
-  {
-    id: 'l-1',
-    title: 'Barbell Back Squat',
-    muscleGroup: 'Quadriceps',
-    secondaryMuscles: 'Glutes, Adductors, Core',
-    type: 'Compound',
-    mechanics: 'Push',
-    equipment: 'Barbell',
-    difficulty: 'Advanced',
-    instructions: [
-      'Barı trapezlerin üzerine yerleştir, ayakları omuz genişliğinde aç.',
-      'Derin nefes al, karın kaslarını sık (Bracing).',
-      'Kalçayı geriye iterek sandalyeye oturur gibi çök.',
-      'Dizler ayak parmakları yönünde açılmalı, içe dönmemeli.',
-      'Paralel seviyeye in ve topuklardan güç alarak kalk.',
-    ],
-    technicalTips: [
-      'Topukların yerden asla kalkmamalı.',
-      'Omurga nötr pozisyonunu koru.',
-    ],
-  },
-  {
-    id: 'l-2',
-    title: 'Romanian Deadlift (RDL)',
-    muscleGroup: 'Hamstrings',
-    secondaryMuscles: 'Glutes, Lower Back, Forearms',
-    type: 'Compound',
-    mechanics: 'Pull',
-    equipment: 'Barbell/Dumbbell',
-    difficulty: 'Intermediate',
-    instructions: [
-      'Barı omuz genişliğinde tut, dik dur.',
-      'Dizleri çok hafif bük (kilitli değil) ve sabitle.',
-      'Kalçayı geriye doğru iterek gövdeni öne eğ.',
-      'Bar bacaklarına sürtünerek diz altına kadar inmeli.',
-      'Arka bacakta (hamstring) gerilimi hisset ve kalçayı öne iterek kalk.',
-    ],
-    technicalTips: [
-      'Sırtını asla yuvarlama.',
-      'Ağırlığı yere bırakma, gerilim sürekli kaslarda olsun.',
-    ],
-  },
-  {
-    id: 'l-3',
-    title: 'Bulgarian Split Squat',
-    muscleGroup: 'Quadriceps & Glutes',
-    secondaryMuscles: 'Calves, Core',
-    type: 'Unilateral',
-    mechanics: 'Push',
-    equipment: 'Dumbbell, Bench',
-    difficulty: 'Hard',
-    instructions: [
-      'Bir ayağını arkandaki sehpaya koy, diğer ayağınla öne adım al.',
-      'Gövdeni dik tutarak arka dizini yere yaklaştır.',
-      'Öndeki dizin parmak ucunu aşırı geçmemeli.',
-      'Öndeki bacağın topuğundan iterek yüksel.',
-    ],
-    technicalTips: [
-      'Denge için karşıdaki sabit bir noktaya odaklan.',
-      'Gövdeyi öne eğersen kalça, dik tutarsan ön bacak çalışır.',
-    ],
-  },
-  {
-    id: 'l-4',
-    title: 'Leg Press',
-    muscleGroup: 'Quadriceps',
-    secondaryMuscles: 'Glutes',
-    type: 'Machine',
-    mechanics: 'Push',
-    equipment: 'Machine',
-    difficulty: 'Beginner',
-    instructions: [
-      'Sırtını ped’e tamamen yasla, bel boşluğu bırakma.',
-      'Ayakları omuz genişliğinde platforma yerleştir.',
-      'Platformun kilitlerini aç ve dizlerini göğsüne doğru indir.',
-      'Ağırlığı yukarı it ama dizlerini tamamen kilitleme (Soft knees).',
-    ],
-    technicalTips: [
-      'Dizlerini kilitlersen yük eklemlere biner, sakatlık riski artar.',
-    ],
-  },
-  {
-    id: 'l-5',
-    title: 'Standing Calf Raise',
-    muscleGroup: 'Calves (Gastrocnemius)',
-    secondaryMuscles: '-',
-    type: 'Isolation',
-    mechanics: 'Push',
-    equipment: 'Machine/Smith',
-    difficulty: 'Beginner',
-    instructions: [
-      'Ayak parmak uçlarını basamağa yerleştir, topuklar boşlukta kalsın.',
-      'Topuklarını mümkün olduğunca aşağı indirerek kası esnet.',
-      'Parmak uçlarında yükselerek baldırları sık.',
-      'Tepe noktada 1 saniye bekle.',
-    ],
-    technicalTips: ['Hareketi zıplayarak yapma, tam kontrol sağla.'],
-  },
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
 
-  // --- CHEST (GÖĞÜS) ---
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+// --- GENİŞLETİLMİŞ PROFESYONEL VERİ TABANI ---
+// Not: İçerik metinleri (Talimatlar vb.) veritabanı olduğu için sabit kalabilir
+// veya ileride çoklu dil desteği için veri yapısı değiştirilebilir.
+const EXERCISE_DB = [
+  // GÖĞÜS
   {
     id: 'c-1',
     title: 'Bench Press',
-    muscleGroup: 'Pectoralis Major',
+    muscleGroup: 'Chest',
     secondaryMuscles: 'Triceps, Front Delts',
     type: 'Compound',
     mechanics: 'Push',
@@ -141,61 +49,22 @@ const EXERCISE_DB = [
     secondaryMuscles: 'Front Delts, Triceps',
     type: 'Compound',
     mechanics: 'Push',
-    equipment: 'Dumbbell, Incline Bench',
+    equipment: 'Dumbbell',
     difficulty: 'Intermediate',
     instructions: [
       'Sehpayı 30-45 derece eğime ayarla.',
       'Dumbbellları omuz hizasında tut.',
-      'Yukarı doğru itip göğsü sıkıştır, ağırlıkları birbirine değdirme.',
+      'Yukarı doğru itip göğsü sıkıştır.',
       'Kontrollü şekilde omuz hizasına indir.',
     ],
     technicalTips: ['Açı arttıkça yük omuzlara kayar, 30 derece idealdir.'],
   },
-  {
-    id: 'c-3',
-    title: 'Cable Crossover',
-    muscleGroup: 'Pectoralis (Inner)',
-    secondaryMuscles: '-',
-    type: 'Isolation',
-    mechanics: 'Push',
-    equipment: 'Cable Machine',
-    difficulty: 'Intermediate',
-    instructions: [
-      'Kabloları en üst makaraya ayarla.',
-      'Bir adım öne çık, gövdeyi hafifçe öne eğ.',
-      'Dirsekleri hafif bükük tutarak elleri göbek hizasında birleştir.',
-      'Geriye açarken göğüste gerilimi hisset.',
-    ],
-    technicalTips: [
-      'Pres yapar gibi itme, sarılıyormuş gibi (fly) hareket et.',
-    ],
-  },
-  {
-    id: 'c-4',
-    title: 'Dips',
-    muscleGroup: 'Lower Chest',
-    secondaryMuscles: 'Triceps, Shoulders',
-    type: 'Bodyweight',
-    mechanics: 'Push',
-    equipment: 'Parallel Bars',
-    difficulty: 'Advanced',
-    instructions: [
-      'Barlara tutun ve kendini yukarı it.',
-      'Gövdeni öne doğru eğ (göğüs odaklı olması için).',
-      'Dirsekler 90 derece olana kadar in.',
-      'Kendini yukarı it.',
-    ],
-    technicalTips: [
-      'Gövde dik durursa arka kol (triceps) çalışır, öne eğilirsen göğüs çalışır.',
-    ],
-  },
-
-  // --- BACK (SIRT) ---
+  // SIRT
   {
     id: 'b-1',
-    title: 'Conventional Deadlift',
-    muscleGroup: 'Posterior Chain',
-    secondaryMuscles: 'Entire Back, Legs, Core',
+    title: 'Deadlift',
+    muscleGroup: 'Back',
+    secondaryMuscles: 'Legs, Core',
     type: 'Compound',
     mechanics: 'Pull',
     equipment: 'Barbell',
@@ -203,16 +72,16 @@ const EXERCISE_DB = [
     instructions: [
       'Ayaklar kalça genişliğinde, bar bağcıkların üzerinde.',
       'Kalçayı it, dizleri bük, barı tut.',
-      'Göğsü kabart, sırtı düzle (Lats engage).',
-      'Yeri iterek ayağa kalk, kalçayı sık.',
+      'Göğsü kabart, sırtı düzle.',
+      'Yeri iterek ayağa kalk.',
     ],
     technicalTips: ['Belini bükme.', 'Bar vücuduna temas ederek yükselmeli.'],
   },
   {
     id: 'b-2',
     title: 'Pull-Up',
-    muscleGroup: 'Lats (Latissimus Dorsi)',
-    secondaryMuscles: 'Biceps, Rear Delts',
+    muscleGroup: 'Lats',
+    secondaryMuscles: 'Biceps',
     type: 'Bodyweight',
     mechanics: 'Pull',
     equipment: 'Bar',
@@ -228,121 +97,46 @@ const EXERCISE_DB = [
       'Çeneni değil, göğsünü hedefle.',
     ],
   },
+  // BACAK
   {
-    id: 'b-3',
-    title: 'Barbell Bent Over Row',
-    muscleGroup: 'Middle Back (Thickness)',
-    secondaryMuscles: 'Lats, Biceps',
+    id: 'l-1',
+    title: 'Squat',
+    muscleGroup: 'Legs',
+    secondaryMuscles: 'Glutes, Core',
     type: 'Compound',
-    mechanics: 'Pull',
+    mechanics: 'Push',
     equipment: 'Barbell',
     difficulty: 'Advanced',
     instructions: [
-      'Dizleri hafif bük, gövdeyi yere neredeyse paralel yap.',
-      'Sırt dümdüz olmalı.',
-      'Barı karın boşluğuna doğru çek.',
-      'Dirsekleri vücuda yakın tut.',
+      'Barı trapezlerin üzerine yerleştir.',
+      'Derin nefes al, karın kaslarını sık.',
+      'Kalçayı geriye iterek çök.',
+      'Paralel seviyeye in ve kalk.',
     ],
-    technicalTips: ['Bel ağrısı varsa göğüs destekli row tercih et.'],
+    technicalTips: ['Topukların yerden kalkmamalı.', 'Dizler içe dönmemeli.'],
   },
-  {
-    id: 'b-4',
-    title: 'Lat Pulldown',
-    muscleGroup: 'Lats (Width)',
-    secondaryMuscles: 'Biceps',
-    type: 'Machine',
-    mechanics: 'Pull',
-    equipment: 'Cable Machine',
-    difficulty: 'Beginner',
-    instructions: [
-      'Barları geniş tut.',
-      'Barı göğsünün üst kısmına doğru çek.',
-      'Geriye aşırı yaslanma.',
-      'Dirsekleri aşağıya ve geriye doğru çek.',
-    ],
-    technicalTips: ['Barı enseye çekme, omuz sağlığı için risklidir.'],
-  },
-
-  // --- SHOULDERS (OMUZ) ---
+  // OMUZ
   {
     id: 's-1',
-    title: 'Overhead Press (OHP)',
-    muscleGroup: 'Front Deltoids',
-    secondaryMuscles: 'Triceps, Core',
+    title: 'Overhead Press',
+    muscleGroup: 'Shoulders',
+    secondaryMuscles: 'Triceps',
     type: 'Compound',
     mechanics: 'Push',
     equipment: 'Barbell',
     difficulty: 'Intermediate',
     instructions: [
       'Barı omuz hizasında al.',
-      'Karnı ve kalçayı sık.',
-      'Başını hafif geri çekip barı yukarı it.',
+      'Karnı sık, barı yukarı it.',
       'Tepe noktada kilitlen.',
     ],
-    technicalTips: ['Beli geriye bükme (Hyperextension yapma).'],
+    technicalTips: ['Beli geriye bükme.'],
   },
-  {
-    id: 's-2',
-    title: 'Lateral Raise',
-    muscleGroup: 'Side Deltoids',
-    secondaryMuscles: 'Traps',
-    type: 'Isolation',
-    mechanics: 'Push',
-    equipment: 'Dumbbell',
-    difficulty: 'Beginner',
-    instructions: [
-      'Dumbbellları yanda tut.',
-      'Dirsekleri hafif bükük tutarak kolları yana aç.',
-      'Omuz hizasına kadar kaldır.',
-      'Yavaşça indir.',
-    ],
-    technicalTips: [
-      'Serçe parmağını hafifçe yukarı çevir (Sürahi boşaltır gibi).',
-    ],
-  },
-  {
-    id: 's-3',
-    title: 'Face Pull',
-    muscleGroup: 'Rear Delts',
-    secondaryMuscles: 'Rotator Cuff, Rhomboids',
-    type: 'Isolation',
-    mechanics: 'Pull',
-    equipment: 'Cable Rope',
-    difficulty: 'Intermediate',
-    instructions: [
-      'Halatı göz hizasına ayarla.',
-      'Halatı alnına/yüzüne doğru çek.',
-      'Ellerini kulaklarının yanına getirmeye çalış.',
-      'Kürek kemiklerini sıkıştır.',
-    ],
-    technicalTips: [
-      'Dirseklerin ellerinden aşağıda kalmasın.',
-      'Duruş bozukluğu için en iyi harekettir.',
-    ],
-  },
-  {
-    id: 's-4',
-    title: 'Arnold Press',
-    muscleGroup: 'All Deltoid Heads',
-    secondaryMuscles: 'Triceps',
-    type: 'Compound',
-    mechanics: 'Push',
-    equipment: 'Dumbbell',
-    difficulty: 'Intermediate',
-    instructions: [
-      'Avuç içleri sana bakacak şekilde başla.',
-      'Yukarı iterken bilekleri çevir.',
-      'Tepe noktada avuç içleri karşıya baksın.',
-      'İnerken tersini yap.',
-    ],
-    technicalTips: ['Hareket akıcı olmalı, duraksama yapma.'],
-  },
-
-  // --- ARMS (KOLLAR) ---
+  // KOL
   {
     id: 'a-1',
     title: 'Barbell Curl',
-    muscleGroup: 'Biceps Brachii',
+    muscleGroup: 'Biceps',
     secondaryMuscles: 'Forearms',
     type: 'Isolation',
     mechanics: 'Pull',
@@ -350,115 +144,34 @@ const EXERCISE_DB = [
     difficulty: 'Beginner',
     instructions: [
       'Barı omuz genişliğinde tut.',
-      'Dirsekleri vücuda sabitle.',
-      'Barı göğse doğru kaldır.',
+      'Dirsekleri sabitle, barı kaldır.',
       'Yavaşça indir.',
     ],
-    technicalTips: ['Vücudunu sallayarak (Cheat curl) kaldırma.'],
+    technicalTips: ['Vücudunu sallayarak kaldırma.'],
   },
   {
     id: 'a-2',
-    title: 'Hammer Curl',
-    muscleGroup: 'Brachialis & Forearms',
-    secondaryMuscles: 'Biceps',
-    type: 'Isolation',
-    mechanics: 'Pull',
-    equipment: 'Dumbbell',
-    difficulty: 'Beginner',
-    instructions: [
-      'Dumbbellları nötr tutuşla (avuçlar birbirine bakacak) tut.',
-      'Dirsekleri oynatmadan kaldır.',
-      'İndirirken kontrolü bırakma.',
-    ],
-    technicalTips: [
-      'Kolların daha kalın görünmesini sağlayan (Brachialis) ana harekettir.',
-    ],
-  },
-  {
-    id: 'a-3',
     title: 'Tricep Pushdown',
-    muscleGroup: 'Triceps (Lateral Head)',
+    muscleGroup: 'Triceps',
     secondaryMuscles: '-',
     type: 'Isolation',
     mechanics: 'Push',
-    equipment: 'Cable Machine',
+    equipment: 'Cable',
     difficulty: 'Beginner',
     instructions: [
       'Dirsekleri vücuduna yapıştır.',
-      'Sadece ön kolunu hareket ettirerek barı aşağı it.',
+      'Sadece ön kolu hareket ettirerek it.',
       'Aşağıda tricepsleri sık.',
-      'Göğüs hizasına kadar yavaşça sal.',
     ],
     technicalTips: ['Dirsekler ileri geri oynamamalı.'],
   },
-  {
-    id: 'a-4',
-    title: 'Skullcrushers',
-    muscleGroup: 'Triceps (Long Head)',
-    secondaryMuscles: '-',
-    type: 'Isolation',
-    mechanics: 'Push',
-    equipment: 'EZ Bar/Dumbbell',
-    difficulty: 'Intermediate',
-    instructions: [
-      'Sehpaya uzan, barı alnının hizasına getir.',
-      'Dirsekleri sabitle, barı alnına (veya başının arkasına) indir.',
-      'Sadece dirsekleri kullanarak yukarı it.',
-    ],
-    technicalTips: ['Dirsekler dışa açılmamalı, tavanı göstermeli.'],
-  },
-
-  // --- CORE (KARIN) ---
-  {
-    id: 'co-1',
-    title: 'Plank',
-    muscleGroup: 'Core Stability',
-    secondaryMuscles: 'Shoulders, Glutes',
-    type: 'Isometric',
-    mechanics: 'Hold',
-    equipment: 'Bodyweight',
-    difficulty: 'Beginner',
-    instructions: [
-      'Dirsekler omuz altında, vücut dümdüz.',
-      'Kalçayı sık, karnı içeri çek.',
-      'Belin çukurlaşmasına izin verme.',
-      'Süre boyunca titremeye diren.',
-    ],
-    technicalTips: ['Süre değil, form önemli.'],
-  },
-  {
-    id: 'co-2',
-    title: 'Hanging Leg Raise',
-    muscleGroup: 'Lower Abs',
-    secondaryMuscles: 'Hip Flexors',
-    type: 'Isolation',
-    mechanics: 'Pull',
-    equipment: 'Pull-up Bar',
-    difficulty: 'Advanced',
-    instructions: [
-      'Bara asıl, vücut durgunlaşsın.',
-      'Bacakları dümdüz (veya dizleri bükerek) yukarı kaldır.',
-      'Kalçanı hafifçe öne doğru yuvarla (Posterior Tilt).',
-      'Kontrollü indir.',
-    ],
-    technicalTips: ['Sallanarak yapma, karın kaslarıyla kaldır.'],
-  },
 ];
-
-// --- RENK PALETİ ---
-const COLORS = {
-  background: '#121212',
-  cardBg: '#1E1E1E',
-  primary: '#FFFFFF',
-  secondary: '#B3B3B3',
-  accent: '#E74C3C', // Agresif, Enerjik Kırmızı (Spor teması için)
-  divider: '#2C2C2C',
-  tagBg: '#2C3E50',
-  tagText: '#AAB7B8',
-};
 
 // --- EKRAN KOMPONENTİ ---
 const ExerciseGuideScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
 
@@ -469,25 +182,30 @@ const ExerciseGuideScreen = () => {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={[
+        styles.card,
+        { backgroundColor: theme.card, borderLeftColor: theme.primary }, // 🔥 Dinamik Arkaplan
+      ]}
       activeOpacity={0.7}
       onPress={() => openDetails(item)}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>
+          {item.title}
+        </Text>
         <View
           style={[
             styles.difficultyBadge,
             {
               backgroundColor:
-                item.difficulty === 'Expert' ? '#C0392B' : COLORS.tagBg,
+                item.difficulty === 'Expert' ? theme.danger : theme.inputBg,
             },
           ]}
         >
           <Text
             style={[
               styles.difficultyText,
-              { color: item.difficulty === 'Expert' ? '#FFF' : COLORS.accent },
+              { color: item.difficulty === 'Expert' ? 'white' : theme.primary },
             ]}
           >
             {item.difficulty}
@@ -495,24 +213,41 @@ const ExerciseGuideScreen = () => {
         </View>
       </View>
 
-      <Text style={styles.muscleText}>{item.muscleGroup}</Text>
+      <Text style={[styles.muscleText, { color: theme.subText }]}>
+        {item.muscleGroup}
+      </Text>
 
       <View style={styles.infoRow}>
-        <Text style={styles.infoText}>{item.type}</Text>
-        <Text style={styles.separator}>•</Text>
-        <Text style={styles.infoText}>{item.mechanics}</Text>
+        <Text style={[styles.infoText, { color: theme.subText }]}>
+          {item.type}
+        </Text>
+        <Text style={[styles.separator, { color: theme.subText }]}>•</Text>
+        <Text style={[styles.infoText, { color: theme.subText }]}>
+          {item.mechanics}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>EXERCISE GUIDE</Text>
-        <Text style={styles.headerSubtitle}>
-          {EXERCISE_DB.length} Movements • Full Library
+      <View
+        style={[
+          styles.headerContainer,
+          { backgroundColor: theme.bg, borderBottomColor: theme.border },
+        ]}
+      >
+        {/* Başlık Dinamik */}
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          {t.exerciseGuide || 'EXERCISE GUIDE'}
+        </Text>
+        <Text style={[styles.headerSubtitle, { color: theme.subText }]}>
+          {EXERCISE_DB.length} {t.movements || 'Movements'} • Full Library
         </Text>
       </View>
 
@@ -532,80 +267,128 @@ const ExerciseGuideScreen = () => {
         presentationStyle="pageSheet"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.bg }]}>
           {selectedExercise && (
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 40 }}
             >
-              <View style={styles.modalHeader}>
+              <View
+                style={[
+                  styles.modalHeader,
+                  { borderBottomColor: theme.border },
+                ]}
+              >
                 <TouchableOpacity
                   onPress={() => setModalVisible(false)}
                   style={styles.closeButton}
                 >
-                  <Text style={styles.closeButtonText}>Close</Text>
+                  <Text
+                    style={[styles.closeButtonText, { color: theme.primary }]}
+                  >
+                    {t.close || 'Close'}
+                  </Text>
                 </TouchableOpacity>
-                <Text style={styles.modalCategoryTitle}>
+                <Text
+                  style={[styles.modalCategoryTitle, { color: theme.subText }]}
+                >
                   {selectedExercise.muscleGroup.toUpperCase()}
                 </Text>
               </View>
 
               <View style={styles.modalBody}>
-                <Text style={styles.detailTitle}>{selectedExercise.title}</Text>
+                <Text style={[styles.detailTitle, { color: theme.text }]}>
+                  {selectedExercise.title}
+                </Text>
 
                 <View style={styles.tagContainer}>
-                  <View style={styles.tag}>
-                    <Text style={styles.tagText}>
+                  <View
+                    style={[styles.tag, { backgroundColor: theme.inputBg }]}
+                  >
+                    <Text style={[styles.tagText, { color: theme.subText }]}>
                       {selectedExercise.difficulty}
                     </Text>
                   </View>
-                  <View style={styles.tag}>
-                    <Text style={styles.tagText}>
+                  <View
+                    style={[styles.tag, { backgroundColor: theme.inputBg }]}
+                  >
+                    <Text style={[styles.tagText, { color: theme.subText }]}>
                       {selectedExercise.equipment}
                     </Text>
                   </View>
-                  <View style={styles.tag}>
-                    <Text style={styles.tagText}>{selectedExercise.type}</Text>
+                  <View
+                    style={[styles.tag, { backgroundColor: theme.inputBg }]}
+                  >
+                    <Text style={[styles.tagText, { color: theme.subText }]}>
+                      {selectedExercise.type}
+                    </Text>
                   </View>
                 </View>
 
                 <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionHeader}>TARGET MUSCLES</Text>
-                  <Text style={styles.sectionContent}>
-                    <Text style={{ fontWeight: 'bold', color: COLORS.accent }}>
-                      Primary:{' '}
+                  <Text
+                    style={[styles.sectionHeader, { color: theme.subText }]}
+                  >
+                    {t.targetMuscles || 'TARGET MUSCLES'}
+                  </Text>
+                  <Text style={[styles.sectionContent, { color: theme.text }]}>
+                    <Text style={{ fontWeight: 'bold', color: theme.primary }}>
+                      {t.primary || 'Primary'}:{' '}
                     </Text>
                     {selectedExercise.muscleGroup}
                     {'\n'}
-                    <Text
-                      style={{ fontWeight: 'bold', color: COLORS.secondary }}
-                    >
-                      Secondary:{' '}
+                    <Text style={{ fontWeight: 'bold', color: theme.subText }}>
+                      {t.secondary || 'Secondary'}:{' '}
                     </Text>
                     {selectedExercise.secondaryMuscles}
                   </Text>
                 </View>
 
-                <View style={styles.divider} />
+                <View
+                  style={[styles.divider, { backgroundColor: theme.border }]}
+                />
 
                 <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionHeader}>EXECUTION</Text>
+                  <Text
+                    style={[styles.sectionHeader, { color: theme.subText }]}
+                  >
+                    {t.execution || 'EXECUTION'}
+                  </Text>
                   {selectedExercise.instructions.map((step, index) => (
                     <View key={index} style={styles.stepRow}>
-                      <Text style={styles.stepNumber}>{index + 1}</Text>
-                      <Text style={styles.stepText}>{step}</Text>
+                      <Text
+                        style={[styles.stepNumber, { color: theme.primary }]}
+                      >
+                        {index + 1}
+                      </Text>
+                      <Text style={[styles.stepText, { color: theme.text }]}>
+                        {step}
+                      </Text>
                     </View>
                   ))}
                 </View>
 
-                <View style={styles.divider} />
+                <View
+                  style={[styles.divider, { backgroundColor: theme.border }]}
+                />
 
                 <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionHeader}>PRO TIPS & CUES</Text>
+                  <Text
+                    style={[styles.sectionHeader, { color: theme.subText }]}
+                  >
+                    {t.proTips || 'PRO TIPS & CUES'}
+                  </Text>
                   {selectedExercise.technicalTips.map((tip, index) => (
                     <View key={index} style={styles.tipRow}>
-                      <View style={styles.bulletPoint} />
-                      <Text style={styles.tipText}>{tip}</Text>
+                      <View
+                        style={[
+                          styles.bulletPoint,
+                          { backgroundColor: theme.primary },
+                        ]}
+                      />
+                      <Text style={[styles.tipText, { color: theme.subText }]}>
+                        {tip}
+                      </Text>
                     </View>
                   ))}
                 </View>
@@ -622,24 +405,19 @@ const ExerciseGuideScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   headerContainer: {
     padding: 20,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    backgroundColor: COLORS.background,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: COLORS.primary,
     letterSpacing: 0.5,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: COLORS.secondary,
     marginTop: 4,
     fontWeight: '600',
     opacity: 0.8,
@@ -649,11 +427,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: COLORS.cardBg,
     padding: 16,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.accent,
     marginBottom: 4,
   },
   cardHeader: {
@@ -665,25 +441,21 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.primary,
     flex: 1,
     marginRight: 10,
   },
   difficultyBadge: {
     paddingHorizontal: 6,
     paddingVertical: 3,
-    backgroundColor: COLORS.tagBg,
     borderRadius: 4,
   },
   difficultyText: {
     fontSize: 9,
     fontWeight: '800',
-    color: COLORS.accent,
     textTransform: 'uppercase',
   },
   muscleText: {
     fontSize: 13,
-    color: COLORS.secondary,
     fontWeight: '500',
     marginBottom: 10,
   },
@@ -694,18 +466,15 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 11,
-    color: COLORS.secondary,
     textTransform: 'uppercase',
     fontWeight: '600',
   },
   separator: {
     marginHorizontal: 6,
-    color: COLORS.secondary,
     fontSize: 10,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   modalHeader: {
     padding: 20,
@@ -713,18 +482,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
   },
   closeButton: {
     padding: 5,
   },
   closeButtonText: {
-    color: COLORS.accent,
     fontSize: 16,
     fontWeight: '600',
   },
   modalCategoryTitle: {
-    color: COLORS.secondary,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,
@@ -735,7 +501,6 @@ const styles = StyleSheet.create({
   detailTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: COLORS.primary,
     marginBottom: 20,
     lineHeight: 34,
   },
@@ -745,7 +510,6 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   tag: {
-    backgroundColor: COLORS.tagBg,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 4,
@@ -753,14 +517,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tagText: {
-    color: '#D0D3D4',
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.divider,
     marginVertical: 24,
     opacity: 0.5,
   },
@@ -770,14 +532,12 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#7F8C8D',
     marginBottom: 16,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   sectionContent: {
     fontSize: 16,
-    color: COLORS.primary,
     lineHeight: 24,
   },
   stepRow: {
@@ -785,7 +545,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   stepNumber: {
-    color: COLORS.accent,
     fontSize: 16,
     fontWeight: '900',
     width: 28,
@@ -795,7 +554,6 @@ const styles = StyleSheet.create({
   stepText: {
     flex: 1,
     fontSize: 15,
-    color: '#ECF0F1',
     lineHeight: 22,
     fontWeight: '400',
   },
@@ -808,14 +566,12 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: COLORS.accent,
     marginTop: 8,
     marginRight: 12,
   },
   tipText: {
     flex: 1,
     fontSize: 14,
-    color: '#BDC3C7',
     lineHeight: 20,
     fontStyle: 'italic',
   },

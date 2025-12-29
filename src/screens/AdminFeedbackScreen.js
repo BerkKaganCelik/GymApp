@@ -12,15 +12,20 @@ import {
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const AdminFeedbackScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // MemberScreen 'feedback' koleksiyonuna yazıyor, biz de orayı dinliyoruz.
     const subscriber = firestore()
       .collection('feedback')
-      .orderBy('createdAt', 'desc') // En yeniler en üstte
+      .orderBy('createdAt', 'desc')
       .onSnapshot(
         querySnapshot => {
           const msgs = [];
@@ -41,14 +46,10 @@ const AdminFeedbackScreen = () => {
         },
       );
 
-    // Unmount olduğunda dinlemeyi durdur
     return () => subscriber();
   }, []);
 
-  // --- İŞLEMLER ---
-
   const handleMarkAsRead = (id, currentStatus) => {
-    // Okundu/Okunmadı durumunu değiştir
     firestore().collection('feedback').doc(id).update({
       isRead: !currentStatus,
     });
@@ -56,10 +57,10 @@ const AdminFeedbackScreen = () => {
 
   const handleDelete = id => {
     Alert.alert(
-      'Mesajı Sil',
+      'Mesajı Sil', // İstersen t.deleteConfirmTitle yapabilirsin
       'Bu mesajı kalıcı olarak silmek istiyor musunuz?',
       [
-        { text: 'Vazgeç', style: 'cancel' },
+        { text: t.cancel, style: 'cancel' },
         {
           text: 'Sil',
           style: 'destructive',
@@ -69,45 +70,57 @@ const AdminFeedbackScreen = () => {
     );
   };
 
-  // --- LİSTE ELEMANI ---
   const renderItem = ({ item }) => {
     return (
-      <View style={[styles.card, item.isRead && styles.cardRead]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.card, borderColor: theme.border }, // 🔥 Dinamik Arkaplan
+          item.isRead && { opacity: 0.6, backgroundColor: theme.bg }, // Okunmuşsa daha soluk
+        ]}
+      >
         <View style={styles.cardHeader}>
           <View style={styles.userInfo}>
             <Text style={styles.avatar}>👤</Text>
             <View>
-              <Text style={styles.userName}>{item.userName}</Text>
-              <Text style={styles.userPhone}>
+              <Text style={[styles.userName, { color: theme.text }]}>
+                {item.userName}
+              </Text>
+              <Text style={[styles.userPhone, { color: theme.subText }]}>
                 {item.userPhone || 'Telefon Yok'}
               </Text>
             </View>
           </View>
 
-          {/* Tarih */}
-          <Text style={styles.dateText}>
+          <Text style={[styles.dateText, { color: theme.subText }]}>
             {item.createdAt
               ? item.createdAt.toDate().toLocaleDateString('tr-TR')
-              : 'Tarih Yok'}
+              : '-'}
           </Text>
         </View>
 
-        <View style={styles.messageBox}>
-          <Text style={[styles.messageText, item.isRead && styles.textRead]}>
+        <View style={[styles.messageBox, { backgroundColor: theme.inputBg }]}>
+          <Text style={[styles.messageText, { color: theme.text }]}>
             {item.message}
           </Text>
         </View>
 
-        {/* Alt Butonlar */}
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={[
               styles.actionBtn,
-              item.isRead ? styles.btnUnread : styles.btnRead,
+              item.isRead
+                ? { backgroundColor: theme.inputBg }
+                : { backgroundColor: 'rgba(46, 204, 113, 0.2)' },
             ]}
             onPress={() => handleMarkAsRead(item.key, item.isRead)}
           >
-            <Text style={styles.btnText}>
+            <Text
+              style={[
+                styles.btnText,
+                { color: item.isRead ? theme.subText : theme.success },
+              ]}
+            >
               {item.isRead ? '✉️ Okunmadı Yap' : '✅ Okundu İşaretle'}
             </Text>
           </TouchableOpacity>
@@ -120,26 +133,40 @@ const AdminFeedbackScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {!item.isRead && <View style={styles.unreadDot} />}
+        {!item.isRead && (
+          <View
+            style={[styles.unreadDot, { backgroundColor: theme.primary }]}
+          />
+        )}
       </View>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#E67E22" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Gelen Kutusu 📥</Text>
-        <Text style={styles.headerSub}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          {t.inbox || 'Gelen Kutusu'} 📥
+        </Text>
+        <Text style={[styles.headerSub, { color: theme.primary }]}>
           {messages.filter(m => !m.isRead).length} Okunmamış Mesaj
         </Text>
       </View>
@@ -152,7 +179,9 @@ const AdminFeedbackScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={{ fontSize: 40 }}>📭</Text>
-            <Text style={styles.emptyText}>Gelen kutusu boş.</Text>
+            <Text style={[styles.emptyText, { color: theme.subText }]}>
+              Gelen kutusu boş.
+            </Text>
           </View>
         }
       />
@@ -161,47 +190,33 @@ const AdminFeedbackScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   header: {
     padding: 20,
-    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFF' },
+  headerTitle: { fontSize: 24, fontWeight: 'bold' },
   headerSub: {
-    color: '#E67E22',
     fontSize: 14,
     marginTop: 5,
     fontWeight: '600',
   },
-
   emptyContainer: { alignItems: 'center', marginTop: 100 },
-  emptyText: { color: '#666', marginTop: 10, fontSize: 16 },
-
-  // KART STİLLERİ
+  emptyText: { marginTop: 10, fontSize: 16 },
   card: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#E67E22', // Okunmamış rengi (Turuncu)
+    borderLeftColor: '#FF8C00', // Sabit kalabilir veya theme.primary
     elevation: 2,
+    borderWidth: 1, // Hafif çerçeve
   },
-  cardRead: {
-    backgroundColor: '#181818', // Okunmuş kart daha koyu
-    borderLeftColor: '#444', // Okunmuş rengi (Gri)
-    opacity: 0.8,
-  },
-
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -210,31 +225,23 @@ const styles = StyleSheet.create({
   },
   userInfo: { flexDirection: 'row', alignItems: 'center' },
   avatar: { fontSize: 24, marginRight: 10 },
-  userName: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  userPhone: { color: '#888', fontSize: 12 },
-  dateText: { color: '#666', fontSize: 12 },
-
+  userName: { fontWeight: 'bold', fontSize: 16 },
+  userPhone: { fontSize: 12 },
+  dateText: { fontSize: 12 },
   messageBox: {
-    backgroundColor: '#252525',
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
   },
-  messageText: { color: '#FFF', fontSize: 15, lineHeight: 22 },
-  textRead: { color: '#AAA' },
-
+  messageText: { fontSize: 15, lineHeight: 22 },
   actionRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-
   actionBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
     marginRight: 10,
   },
-  btnRead: { backgroundColor: 'rgba(46, 204, 113, 0.2)' }, // Yeşil transparan
-  btnUnread: { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
-  btnText: { color: '#2ECC71', fontWeight: 'bold', fontSize: 12 },
-
+  btnText: { fontWeight: 'bold', fontSize: 12 },
   deleteBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -242,7 +249,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(231, 76, 60, 0.2)',
   },
   deleteText: { color: '#E74C3C', fontWeight: 'bold', fontSize: 12 },
-
   unreadDot: {
     position: 'absolute',
     top: 10,
@@ -250,7 +256,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#E67E22',
   },
 });
 

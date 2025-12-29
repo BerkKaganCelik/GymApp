@@ -14,21 +14,25 @@ import {
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // ✨ YENİ: Yerel Depolama
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
 
 const ActiveWorkoutScreen = ({ navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [program, setProgram] = useState([]);
   const [loading, setLoading] = useState(true);
-  // State: { 'hareketIndex_setIndex': { done: boolean, weight: string } }
   const [setLogs, setSetLogs] = useState({});
   const user = auth().currentUser;
 
-  // ✨ YENİ: İlerleme Kaydetme Fonksiyonu
   const saveProgress = async (currentLogs, currentProgram) => {
     try {
       const dataToSave = {
         logs: currentLogs,
-        program: currentProgram, // Program değişirse diye programı da kaydediyoruz
+        program: currentProgram,
         date: new Date().getTime(),
       };
       await AsyncStorage.setItem('saved_workout', JSON.stringify(dataToSave));
@@ -37,7 +41,6 @@ const ActiveWorkoutScreen = ({ navigation }) => {
     }
   };
 
-  // ✨ YENİ: Kayıtlı Antrenmanı Temizleme
   const clearProgress = async () => {
     try {
       await AsyncStorage.removeItem('saved_workout');
@@ -48,23 +51,20 @@ const ActiveWorkoutScreen = ({ navigation }) => {
 
   useEffect(() => {
     const init = async () => {
-      // 1. Önce yerel hafızada yarım kalan var mı bak
       try {
         const savedData = await AsyncStorage.getItem('saved_workout');
         if (savedData) {
           const parsed = JSON.parse(savedData);
-          // 24 saatten eski kayıtları yok sayabiliriz (isteğe bağlı)
-
           Alert.alert(
-            'Yarım Kalan Antrenman',
+            'Yarım Kalan Antrenman', // İstersen burayı da t.resumeWorkout gibi yapabilirsin
             'Önceki antrenmanınız yarım kalmış. Devam etmek ister misiniz?',
             [
               {
-                text: 'Hayır, Yeni Başla',
+                text: t.cancel, // 🔥 Çeviri: İptal/Hayır
                 style: 'cancel',
                 onPress: () => {
-                  clearProgress(); // Eski kaydı sil
-                  fetchProgramFromDb(); // Veritabanından sıfırdan çek
+                  clearProgress();
+                  fetchProgramFromDb();
                 },
               },
               {
@@ -103,7 +103,6 @@ const ActiveWorkoutScreen = ({ navigation }) => {
       });
   };
 
-  // Set işaretleme (Tamamlandı/Tamamlanmadı)
   const toggleSet = (exIndex, setIndex) => {
     const key = `${exIndex}_${setIndex}`;
     setSetLogs(prev => {
@@ -112,15 +111,14 @@ const ActiveWorkoutScreen = ({ navigation }) => {
         [key]: {
           ...prev[key],
           done: !prev[key]?.done,
-          weight: prev[key]?.weight || '', // Mevcut kiloyu koru
+          weight: prev[key]?.weight || '',
         },
       };
-      saveProgress(newState, program); // ✨ YENİ: Her tıkta kaydet
+      saveProgress(newState, program);
       return newState;
     });
   };
 
-  // Kilo güncelleme
   const updateWeight = (exIndex, setIndex, text) => {
     const key = `${exIndex}_${setIndex}`;
     setSetLogs(prev => {
@@ -129,23 +127,21 @@ const ActiveWorkoutScreen = ({ navigation }) => {
         [key]: {
           ...prev[key],
           weight: text,
-          done: prev[key]?.done || false, // Durumu koru
+          done: prev[key]?.done || false,
         },
       };
-      saveProgress(newState, program); // ✨ YENİ: Her harfte kaydet
+      saveProgress(newState, program);
       return newState;
     });
   };
 
   const finishWorkout = async () => {
-    // 1. En az bir set yapılmış mı kontrol et
     const hasActivity = Object.values(setLogs).some(log => log.done);
     if (!hasActivity) {
       Alert.alert('Uyarı', 'Henüz hiçbir seti tamamlamadınız.');
       return;
     }
 
-    // 2. Veriyi Hazırla
     const detailedLog = program.map((exercise, exIndex) => {
       const sets = Array.from({ length: parseInt(exercise.sets) || 3 }).map(
         (_, setIndex) => {
@@ -155,7 +151,7 @@ const ActiveWorkoutScreen = ({ navigation }) => {
             setNo: setIndex + 1,
             plannedReps: exercise.reps,
             isDone: log?.done || false,
-            weight: log?.weight || '0', // Girilen kilo (yoksa 0)
+            weight: log?.weight || '0',
           };
         },
       );
@@ -169,7 +165,6 @@ const ActiveWorkoutScreen = ({ navigation }) => {
       };
     });
 
-    // 3. Toplam Tonajı Hesapla
     const totalWeightLifted = detailedLog.reduce((acc, ex) => {
       return (
         acc +
@@ -182,7 +177,6 @@ const ActiveWorkoutScreen = ({ navigation }) => {
     try {
       const batch = firestore().batch();
 
-      // A. Geçmişe ekle
       const historyRef = firestore().collection('workout_history').doc();
       batch.set(historyRef, {
         userId: user.uid,
@@ -194,7 +188,6 @@ const ActiveWorkoutScreen = ({ navigation }) => {
         fullName: user.displayName || 'Üye',
       });
 
-      // B. Kullanıcı istatistiğini güncelle (Toplam Antrenman Sayısı)
       const userRef = firestore().collection('users').doc(user.uid);
       batch.update(userRef, {
         totalWorkouts: firestore.FieldValue.increment(1),
@@ -202,8 +195,6 @@ const ActiveWorkoutScreen = ({ navigation }) => {
       });
 
       await batch.commit();
-
-      // ✨ YENİ: Başarılı olunca yerel kaydı sil
       await clearProgress();
 
       Alert.alert(
@@ -218,23 +209,36 @@ const ActiveWorkoutScreen = ({ navigation }) => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#FF8C00" size="large" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.bg }]} // 🔥 Dinamik Arkaplan
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <Text style={styles.header}>ANTRENMAN MODU 🔥</Text>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
+
+      {/* Başlık Rengi Dinamik */}
+      <Text style={[styles.header, { color: theme.primary }]}>
+        ANTRENMAN MODU 🔥
+      </Text>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {program.map((item, exIndex) => (
-          <View key={exIndex} style={styles.card}>
-            <Text style={styles.exName}>{item.name}</Text>
+          <View
+            key={exIndex}
+            style={[styles.card, { backgroundColor: theme.card }]}
+          >
+            <Text style={[styles.exName, { color: theme.text }]}>
+              {item.name}
+            </Text>
+
             <View style={styles.setsContainer}>
               {Array.from({ length: parseInt(item.sets) || 3 }).map(
                 (_, setIndex) => {
@@ -243,21 +247,38 @@ const ActiveWorkoutScreen = ({ navigation }) => {
                   const isDone = log?.done;
 
                   return (
-                    <View key={setIndex} style={styles.setRow}>
+                    <View
+                      key={setIndex}
+                      style={[
+                        styles.setRow,
+                        { backgroundColor: isDark ? '#252525' : '#F0F0F0' },
+                      ]}
+                    >
                       {/* SOL TARA: SET BUTONU */}
                       <TouchableOpacity
-                        style={[styles.setBox, isDone && styles.setDone]}
+                        style={[
+                          styles.setBox,
+                          {
+                            backgroundColor: isDone
+                              ? theme.success
+                              : theme.inputBg,
+                            borderColor: theme.border,
+                          },
+                        ]}
                         onPress={() => toggleSet(exIndex, setIndex)}
                       >
                         <Text
-                          style={[styles.setText, isDone && { color: 'black' }]}
+                          style={[
+                            styles.setText,
+                            { color: isDone ? 'white' : theme.subText },
+                          ]}
                         >
                           {setIndex + 1}. Set
                         </Text>
                         <Text
                           style={[
                             styles.repsText,
-                            isDone && { color: 'black' },
+                            { color: isDone ? 'white' : theme.text },
                           ]}
                         >
                           {isDone ? '✅' : `${item.reps} Tk`}
@@ -265,18 +286,30 @@ const ActiveWorkoutScreen = ({ navigation }) => {
                       </TouchableOpacity>
 
                       {/* SAĞ TARAF: KİLO GİRİŞİ */}
-                      <View style={styles.inputContainer}>
+                      <View
+                        style={[
+                          styles.inputContainer,
+                          {
+                            backgroundColor: theme.card,
+                            borderColor: theme.border,
+                          },
+                        ]}
+                      >
                         <TextInput
-                          style={styles.weightInput}
+                          style={[styles.weightInput, { color: theme.text }]}
                           placeholder="KG"
-                          placeholderTextColor="#666"
+                          placeholderTextColor={theme.subText}
                           keyboardType="numeric"
                           value={log?.weight || ''}
                           onChangeText={text =>
                             updateWeight(exIndex, setIndex, text)
                           }
                         />
-                        <Text style={styles.kgLabel}>kg</Text>
+                        <Text
+                          style={[styles.kgLabel, { color: theme.subText }]}
+                        >
+                          kg
+                        </Text>
                       </View>
                     </View>
                   );
@@ -287,7 +320,10 @@ const ActiveWorkoutScreen = ({ navigation }) => {
         ))}
       </ScrollView>
 
-      <TouchableOpacity style={styles.finishBtn} onPress={finishWorkout}>
+      <TouchableOpacity
+        style={[styles.finishBtn, { backgroundColor: theme.primary }]}
+        onPress={finishWorkout}
+      >
         <Text style={styles.finishText}>ANTRENMANI BİTİR 🏁</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
@@ -295,31 +331,27 @@ const ActiveWorkoutScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
+  container: { flex: 1, padding: 20 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF8C00',
     textAlign: 'center',
     marginBottom: 20,
     marginTop: 10,
   },
   card: {
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 15,
     marginBottom: 15,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: '#007AFF', // Bunu sabit bırakabiliriz veya theme.primary yapabiliriz
   },
   exName: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
@@ -330,42 +362,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     justifyContent: 'space-between',
-    backgroundColor: '#252525',
     padding: 5,
     borderRadius: 8,
   },
   setBox: {
     width: 80,
-    backgroundColor: '#333',
     padding: 10,
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#555',
   },
-  setDone: { backgroundColor: '#4CD964', borderColor: '#4CD964' },
-  setText: { color: '#AAA', fontSize: 10, fontWeight: 'bold' },
-  repsText: { color: 'white', fontWeight: 'bold', marginTop: 2 },
+  setText: { fontSize: 10, fontWeight: 'bold' },
+  repsText: { fontWeight: 'bold', marginTop: 2 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
     borderRadius: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#444',
     height: 45,
     width: 100,
   },
   weightInput: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
     flex: 1,
     textAlign: 'center',
   },
   kgLabel: {
-    color: '#666',
     fontSize: 12,
     marginLeft: 5,
   },
@@ -374,14 +398,13 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: '#FF8C00',
     padding: 18,
     borderRadius: 15,
     alignItems: 'center',
     elevation: 5,
     zIndex: 10,
   },
-  finishText: { color: 'black', fontWeight: 'bold', fontSize: 18 },
+  finishText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
 });
 
 export default ActiveWorkoutScreen;

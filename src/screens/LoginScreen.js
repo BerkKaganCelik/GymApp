@@ -17,7 +17,13 @@ import {
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const LoginScreen = ({ navigation }) => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +34,7 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Hata', 'Alanları doldurun.');
+      Alert.alert(t.error || 'Hata', t.fillFields || 'Alanları doldurun.');
       return;
     }
     setLoading(true);
@@ -55,8 +61,9 @@ const LoginScreen = ({ navigation }) => {
           if (!isActive) {
             auth().signOut();
             Alert.alert(
-              'Giriş Reddedildi ⛔',
-              'Üyeliğiniz dondurulmuş durumdadır. Lütfen yöneticinizle iletişime geçin.',
+              t.accessDenied || 'Giriş Reddedildi ⛔',
+              t.membershipFrozen ||
+                'Üyeliğiniz dondurulmuş durumdadır. Lütfen yöneticinizle iletişime geçin.',
             );
             return;
           }
@@ -66,10 +73,10 @@ const LoginScreen = ({ navigation }) => {
             if (expiryDate < now) {
               auth().signOut();
               Alert.alert(
-                'Giriş Reddedildi ⚠️',
-                `Üyelik süreniz ${expiryDate.toLocaleDateString(
-                  'tr-TR',
-                )} tarihinde dolmuştur.`,
+                t.accessDenied || 'Giriş Reddedildi ⚠️',
+                `${
+                  t.membershipExpired || 'Üyelik süreniz dolmuştur:'
+                } ${expiryDate.toLocaleDateString('tr-TR')}`,
               );
               return;
             }
@@ -80,15 +87,21 @@ const LoginScreen = ({ navigation }) => {
         } else {
           // Tanımsız kullanıcı rolü
           auth().signOut();
-          Alert.alert('Yetkisiz Kullanıcı', 'Hesabınızın rolü tanımsızdır.');
+          Alert.alert(
+            t.unauthorized || 'Yetkisiz Kullanıcı',
+            'Hesabınızın rolü tanımsızdır.',
+          );
         }
       } else {
         // Auth'ta var ama Firestore'da yoksa
         auth().signOut();
-        Alert.alert('Hata', 'Kullanıcı verisi bulunamadı.');
+        Alert.alert(t.error || 'Hata', 'Kullanıcı verisi bulunamadı.');
       }
     } catch (error) {
-      Alert.alert('Giriş Başarısız', 'E-mail veya şifre hatalı.');
+      Alert.alert(
+        t.loginFailed || 'Giriş Başarısız',
+        'E-mail veya şifre hatalı.',
+      );
     } finally {
       setLoading(false);
     }
@@ -96,7 +109,7 @@ const LoginScreen = ({ navigation }) => {
 
   const handleResetPassword = async () => {
     if (!resetEmail) {
-      Alert.alert('Eksik', 'Lütfen e-mail adresinizi yazın.');
+      Alert.alert(t.missingInfo || 'Eksik', 'Lütfen e-mail adresinizi yazın.');
       return;
     }
     try {
@@ -108,39 +121,63 @@ const LoginScreen = ({ navigation }) => {
       setShowForgot(false);
       setResetEmail('');
     } catch (error) {
-      Alert.alert('Hata', error.message);
+      Alert.alert(t.error || 'Hata', error.message);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>IRON GYM</Text>
-          <Text style={styles.subtitle}>HESABINA GİRİŞ YAP</Text>
+          {/* Logo Yazısı */}
+          <Text style={[styles.title, { color: theme.text }]}>IRON GYM</Text>
+          <Text style={[styles.subtitle, { color: theme.primary }]}>
+            {t.loginTitle || 'HESABINA GİRİŞ YAP'}
+          </Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>E-MAIL ADRESİ</Text>
+          <Text style={[styles.label, { color: theme.subText }]}>
+            {t.email || 'E-MAIL ADRESİ'}
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.inputBg,
+                color: theme.text,
+                borderColor: theme.border,
+              },
+            ]}
             placeholder="ornek@mail.com"
-            placeholderTextColor="#666"
+            placeholderTextColor={theme.subText}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
           />
 
-          <Text style={styles.label}>ŞİFRE</Text>
+          <Text style={[styles.label, { color: theme.subText }]}>
+            {t.password || 'ŞİFRE'}
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.inputBg,
+                color: theme.text,
+                borderColor: theme.border,
+              },
+            ]}
             placeholder="••••••"
-            placeholderTextColor="#666"
+            placeholderTextColor={theme.subText}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -151,20 +188,22 @@ const LoginScreen = ({ navigation }) => {
             onPress={() => setShowForgot(true)}
             style={{ alignSelf: 'flex-end', marginBottom: 20 }}
           >
-            <Text style={{ color: '#FF8C00', fontSize: 12 }}>
-              Şifremi Unuttum?
+            <Text style={{ color: theme.primary, fontSize: 12 }}>
+              {t.forgotPassword || 'Şifremi Unuttum?'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.loginButton, { backgroundColor: theme.primary }]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color={theme.bg} />
             ) : (
-              <Text style={styles.loginButtonText}>GİRİŞ YAP</Text>
+              <Text style={[styles.loginButtonText, { color: theme.bg }]}>
+                {t.login || 'GİRİŞ YAP'}
+              </Text>
             )}
           </TouchableOpacity>
 
@@ -172,7 +211,9 @@ const LoginScreen = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>Geri Dön</Text>
+            <Text style={[styles.backButtonText, { color: theme.subText }]}>
+              {t.goBack || 'Geri Dön'}
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -180,35 +221,61 @@ const LoginScreen = ({ navigation }) => {
       {/* ŞİFRE SIFIRLAMA MODALI */}
       <Modal visible={showForgot} transparent animationType="fade">
         <View style={styles.modalBg}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>ŞİFRE SIFIRLAMA 🔒</Text>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.card, borderColor: theme.primary },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {t.resetPasswordTitle || 'ŞİFRE SIFIRLAMA'} 🔒
+            </Text>
             <Text
-              style={{ color: '#CCC', marginBottom: 15, textAlign: 'center' }}
+              style={{
+                color: theme.subText,
+                marginBottom: 15,
+                textAlign: 'center',
+              }}
             >
-              Kayıtlı e-mail adresini gir, sana bir sıfırlama linki gönderelim.
+              {t.resetPasswordDesc ||
+                'Kayıtlı e-mail adresini gir, sana bir sıfırlama linki gönderelim.'}
             </Text>
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.inputBg,
+                  color: theme.text,
+                  borderColor: theme.border,
+                },
+              ]}
               placeholder="E-mail adresi"
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.subText}
               value={resetEmail}
               onChangeText={setResetEmail}
               autoCapitalize="none"
             />
 
             <TouchableOpacity
-              style={[styles.loginButton, { marginTop: 10 }]}
+              style={[
+                styles.loginButton,
+                { marginTop: 10, backgroundColor: theme.primary },
+              ]}
               onPress={handleResetPassword}
             >
-              <Text style={styles.loginButtonText}>LİNKİ GÖNDER</Text>
+              <Text style={[styles.loginButtonText, { color: theme.bg }]}>
+                {t.sendLink || 'LİNKİ GÖNDER'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.closeBtn}
               onPress={() => setShowForgot(false)}
             >
-              <Text style={{ color: '#666' }}>Vazgeç</Text>
+              <Text style={{ color: theme.subText }}>
+                {t.cancel || 'Vazgeç'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -218,18 +285,16 @@ const LoginScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
   header: { alignItems: 'center', marginBottom: 50 },
   title: {
     fontSize: 40,
     fontWeight: '900',
-    color: '#FFF',
     letterSpacing: 2,
     fontStyle: 'italic',
   },
   subtitle: {
-    color: '#FF8C00',
     fontSize: 14,
     letterSpacing: 4,
     marginTop: 5,
@@ -237,37 +302,31 @@ const styles = StyleSheet.create({
   },
   form: { width: '100%' },
   label: {
-    color: '#888',
     fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 8,
     marginLeft: 5,
   },
   input: {
-    backgroundColor: '#1E1E1E',
-    color: 'white',
     padding: 15,
     borderRadius: 12,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
     fontSize: 16,
     width: '100%',
   },
   loginButton: {
-    backgroundColor: '#FF8C00',
     padding: 18,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#FF8C00',
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 5,
     width: '100%',
   },
-  loginButtonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  loginButtonText: { fontWeight: 'bold', fontSize: 16 },
   backButton: { marginTop: 20, alignItems: 'center' },
-  backButtonText: { color: '#666' },
+  backButtonText: {},
 
   // Modal
   modalBg: {
@@ -277,15 +336,12 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   modalContent: {
-    backgroundColor: '#1E1E1E',
     padding: 25,
     borderRadius: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FF8C00',
   },
   modalTitle: {
-    color: 'white',
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 10,

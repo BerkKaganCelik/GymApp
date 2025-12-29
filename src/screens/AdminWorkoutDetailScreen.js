@@ -13,14 +13,19 @@ import {
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
+// 🔥 ADIM 1: Tema Hook'unu İmport Et
+import { useTheme } from '../context/ThemeContext';
+
 const AdminWorkoutDetailScreen = () => {
+  // 🔥 ADIM 2: Tema ve Dil Değişkenlerini Çek
+  const { theme, t, isDark } = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [allLogs, setAllLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
 
-  // ✨ YENİ: İsimleri hafızada tutmak için önbellek (Sürekli okuma yapmasın)
   const userCache = useRef({});
 
   useEffect(() => {
@@ -32,24 +37,20 @@ const AdminWorkoutDetailScreen = () => {
         async querySnapshot => {
           if (!querySnapshot) return;
 
-          // Tüm işlemleri Promise.all ile paralel yapıyoruz
           const promises = querySnapshot.docs.map(async doc => {
             const data = doc.data();
             let finalName = data.fullName;
             const uid = data.userId;
 
-            // 🔍 EĞER İSİM YOKSA VEYA 'Üye' YAZIYORSA GERÇEK İSMİ BUL
             if (
               (!finalName ||
                 finalName === 'Üye' ||
                 finalName === 'Bilinmeyen Üye') &&
               uid
             ) {
-              // 1. Önce Cache'e bak
               if (userCache.current[uid]) {
                 finalName = userCache.current[uid];
               } else {
-                // 2. Cache'de yoksa Firestore 'users' tablosundan çek
                 try {
                   const userDoc = await firestore()
                     .collection('users')
@@ -57,7 +58,6 @@ const AdminWorkoutDetailScreen = () => {
                     .get();
                   if (userDoc.exists) {
                     finalName = userDoc.data().fullName;
-                    // Bulduğumuz ismi Cache'e atalım
                     userCache.current[uid] = finalName;
                   }
                 } catch (e) {
@@ -70,11 +70,10 @@ const AdminWorkoutDetailScreen = () => {
               ...data,
               key: doc.id,
               dateObj: data.date ? data.date.toDate() : new Date(),
-              fullName: finalName || 'İsimsiz Üye', // Hâlâ yoksa bunu yaz
+              fullName: finalName || 'İsimsiz Üye',
             };
           });
 
-          // Tüm veriler hazır olunca listeyi güncelle
           const list = await Promise.all(promises);
 
           setAllLogs(list);
@@ -110,25 +109,40 @@ const AdminWorkoutDetailScreen = () => {
     );
   };
 
-  // KART GÖRÜNÜMÜ
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.logCard}
+      style={[
+        styles.logCard,
+        { backgroundColor: theme.card, borderColor: theme.border },
+      ]}
       onPress={() => setSelectedLog(item)}
     >
       <View style={styles.cardHeader}>
-        <View style={styles.userAvatar}>
-          {/* İsmin baş harfi */}
-          <Text style={{ fontSize: 18, color: '#FFF', fontWeight: 'bold' }}>
+        <View
+          style={[
+            styles.userAvatar,
+            { backgroundColor: theme.inputBg, borderColor: theme.border },
+          ]}
+        >
+          <Text style={{ fontSize: 18, color: theme.text, fontWeight: 'bold' }}>
             {item.fullName.charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.logUser}>{item.fullName}</Text>
-          <Text style={styles.logDate}>{formatDate(item.dateObj)}</Text>
+          <Text style={[styles.logUser, { color: theme.text }]}>
+            {item.fullName}
+          </Text>
+          <Text style={[styles.logDate, { color: theme.subText }]}>
+            {formatDate(item.dateObj)}
+          </Text>
         </View>
-        <View style={styles.totalBadge}>
-          <Text style={styles.totalText}>
+        <View
+          style={[
+            styles.totalBadge,
+            { borderColor: theme.primary, backgroundColor: theme.inputBg },
+          ]}
+        >
+          <Text style={[styles.totalText, { color: theme.primary }]}>
             ⚡{' '}
             {item.totalWeightLifted
               ? Math.round(item.totalWeightLifted) + ' KG'
@@ -137,8 +151,8 @@ const AdminWorkoutDetailScreen = () => {
         </View>
       </View>
 
-      <Text style={styles.programName}>
-        Program: <Text style={{ color: '#CCC' }}>{item.programName}</Text>
+      <Text style={[styles.programName, { color: theme.subText }]}>
+        Program: <Text style={{ color: theme.text }}>{item.programName}</Text>
       </Text>
 
       <View
@@ -148,14 +162,15 @@ const AdminWorkoutDetailScreen = () => {
           marginTop: 5,
         }}
       >
-        <Text style={{ color: '#FF8C00', fontSize: 12, fontWeight: 'bold' }}>
-          Detayları Gör ➡️
+        <Text
+          style={{ color: theme.primary, fontSize: 12, fontWeight: 'bold' }}
+        >
+          {t.viewDetails || 'Detayları Gör'} ➡️
         </Text>
       </View>
     </TouchableOpacity>
   );
 
-  // DETAY MODALI
   const renderDetailModal = () => {
     if (!selectedLog) return null;
 
@@ -167,12 +182,23 @@ const AdminWorkoutDetailScreen = () => {
         onRequestClose={() => setSelectedLog(null)}
       >
         <View style={styles.modalBg}>
-          <View style={styles.modalContent}>
-            {/* Modal Başlığı */}
-            <View style={styles.modalHeaderBox}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.bg, borderColor: theme.border },
+            ]}
+          >
+            <View
+              style={[
+                styles.modalHeaderBox,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
               <View>
-                <Text style={styles.modalUser}>{selectedLog.fullName}</Text>
-                <Text style={styles.modalDate}>
+                <Text style={[styles.modalUser, { color: theme.text }]}>
+                  {selectedLog.fullName}
+                </Text>
+                <Text style={[styles.modalDate, { color: theme.subText }]}>
                   {formatDate(selectedLog.dateObj)}
                 </Text>
               </View>
@@ -180,27 +206,35 @@ const AdminWorkoutDetailScreen = () => {
                 style={styles.closeIcon}
                 onPress={() => setSelectedLog(null)}
               >
-                <Text style={{ color: 'black', fontWeight: 'bold' }}>X</Text>
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>X</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView style={{ flex: 1, padding: 15 }}>
               {selectedLog.detailedLog?.map((exercise, exIndex) => (
-                <View key={exIndex} style={styles.exerciseCard}>
+                <View
+                  key={exIndex}
+                  style={[
+                    styles.exerciseCard,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                  ]}
+                >
                   <View
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       marginBottom: 10,
                       borderBottomWidth: 1,
-                      borderBottomColor: '#333',
+                      borderBottomColor: theme.border,
                       paddingBottom: 5,
                     }}
                   >
-                    <Text style={styles.exName}>{exercise.name}</Text>
+                    <Text style={[styles.exName, { color: theme.text }]}>
+                      {exercise.name}
+                    </Text>
                     <Text
                       style={{
-                        color: '#4CD964',
+                        color: theme.success,
                         fontSize: 12,
                         fontWeight: 'bold',
                       }}
@@ -209,17 +243,42 @@ const AdminWorkoutDetailScreen = () => {
                     </Text>
                   </View>
 
-                  {/* SET TABLOSU */}
                   <View style={styles.setTable}>
-                    <View style={styles.tableHeader}>
-                      <Text style={[styles.col, { flex: 0.5 }]}>SET</Text>
+                    <View
+                      style={[
+                        styles.tableHeader,
+                        { borderBottomColor: theme.border },
+                      ]}
+                    >
                       <Text
-                        style={[styles.col, { flex: 1, textAlign: 'center' }]}
+                        style={[
+                          styles.col,
+                          { flex: 0.5, color: theme.subText },
+                        ]}
+                      >
+                        SET
+                      </Text>
+                      <Text
+                        style={[
+                          styles.col,
+                          {
+                            flex: 1,
+                            textAlign: 'center',
+                            color: theme.subText,
+                          },
+                        ]}
                       >
                         KİLO
                       </Text>
                       <Text
-                        style={[styles.col, { flex: 1, textAlign: 'center' }]}
+                        style={[
+                          styles.col,
+                          {
+                            flex: 1,
+                            textAlign: 'center',
+                            color: theme.subText,
+                          },
+                        ]}
                       >
                         TEKRAR
                       </Text>
@@ -230,11 +289,15 @@ const AdminWorkoutDetailScreen = () => {
                         key={setIndex}
                         style={[
                           styles.tableRow,
+                          { borderBottomColor: theme.border }, // 🔥 Sınır rengi
                           !set.isDone && { opacity: 0.4 },
                         ]}
                       >
                         <Text
-                          style={[styles.cell, { flex: 0.5, color: '#888' }]}
+                          style={[
+                            styles.cell,
+                            { flex: 0.5, color: theme.subText },
+                          ]}
                         >
                           #{set.setNo}
                         </Text>
@@ -244,21 +307,25 @@ const AdminWorkoutDetailScreen = () => {
                             style={[
                               styles.cell,
                               {
-                                color: '#FF8C00',
+                                color: theme.primary,
                                 fontWeight: 'bold',
                                 fontSize: 16,
                               },
                             ]}
                           >
                             {set.isDone ? set.weight || 0 : '-'}{' '}
-                            <Text style={{ fontSize: 10, color: '#666' }}>
+                            <Text
+                              style={{ fontSize: 10, color: theme.subText }}
+                            >
                               kg
                             </Text>
                           </Text>
                         </View>
 
                         <View style={{ flex: 1, alignItems: 'center' }}>
-                          <Text style={styles.cell}>{set.plannedReps}</Text>
+                          <Text style={[styles.cell, { color: theme.text }]}>
+                            {set.plannedReps}
+                          </Text>
                         </View>
                       </View>
                     ))}
@@ -269,7 +336,11 @@ const AdminWorkoutDetailScreen = () => {
               {(!selectedLog.detailedLog ||
                 selectedLog.detailedLog.length === 0) && (
                 <Text
-                  style={{ color: '#666', textAlign: 'center', marginTop: 20 }}
+                  style={{
+                    color: theme.subText,
+                    textAlign: 'center',
+                    marginTop: 20,
+                  }}
                 >
                   Detay verisi bulunamadı.
                 </Text>
@@ -285,26 +356,36 @@ const AdminWorkoutDetailScreen = () => {
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#FF8C00" size="large" />
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
       <View style={styles.headerContainer}>
-        <Text style={styles.header}>ANTRENMAN RAPORLARI 📋</Text>
+        {/* Başlık Dinamik */}
+        <Text style={[styles.header, { color: theme.text }]}>
+          {t.workoutReports || 'ANTRENMAN RAPORLARI'} 📋
+        </Text>
       </View>
 
-      {/* ARAMA */}
-      <View style={styles.searchBox}>
+      <View
+        style={[
+          styles.searchBox,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
         <Text style={{ fontSize: 18, marginRight: 10 }}>🔍</Text>
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.text }]}
           placeholder="Üye adı ile ara..."
-          placeholderTextColor="#666"
+          placeholderTextColor={theme.subText}
           value={search}
           onChangeText={handleSearch}
         />
@@ -316,7 +397,9 @@ const AdminWorkoutDetailScreen = () => {
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 20 }}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>Henüz antrenman kaydı yok.</Text>
+          <Text style={[styles.emptyText, { color: theme.subText }]}>
+            Henüz antrenman kaydı yok.
+          </Text>
         }
       />
 
@@ -326,75 +409,60 @@ const AdminWorkoutDetailScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 15 },
+  container: { flex: 1, padding: 15 },
   center: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   headerContainer: { marginBottom: 15, marginTop: 10, alignItems: 'center' },
-  header: { fontSize: 22, fontWeight: 'bold', color: 'white' },
-
+  header: { fontSize: 22, fontWeight: 'bold' },
   searchBox: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
     padding: 10,
     borderRadius: 10,
     alignItems: 'center',
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
   },
-  searchInput: { flex: 1, color: 'white', padding: 0, fontSize: 16 },
-
+  searchInput: { flex: 1, padding: 0, fontSize: 16 },
   logCard: {
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 12,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF', // Mavi şerit
+    borderLeftColor: '#007AFF',
+    borderWidth: 1,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   userAvatar: {
     width: 45,
     height: 45,
-    backgroundColor: '#333',
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#555',
   },
-  logUser: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  logDate: { color: '#888', fontSize: 12, marginTop: 2 },
+  logUser: { fontWeight: 'bold', fontSize: 16 },
+  logDate: { fontSize: 12, marginTop: 2 },
   totalBadge: {
-    backgroundColor: 'rgba(255, 140, 0, 0.15)', // Saydam turuncu
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FF8C00',
   },
-  totalText: { color: '#FF8C00', fontWeight: 'bold', fontSize: 14 },
-  programName: { color: '#888', fontSize: 13, marginTop: 5 },
-
-  emptyText: { color: '#666', textAlign: 'center', marginTop: 50 },
-
-  // MODAL
+  totalText: { fontWeight: 'bold', fontSize: 14 },
+  programName: { fontSize: 13, marginTop: 5 },
+  emptyText: { textAlign: 'center', marginTop: 50 },
   modalBg: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)', // Daha koyu arka plan
+    backgroundColor: 'rgba(0,0,0,0.95)',
     justifyContent: 'center',
     padding: 10,
   },
   modalContent: {
-    backgroundColor: '#121212',
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: '#333',
     height: '90%',
     overflow: 'hidden',
   },
@@ -403,12 +471,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
-  modalUser: { color: 'white', fontSize: 22, fontWeight: 'bold' },
-  modalDate: { color: '#888', fontSize: 13, marginTop: 2 },
+  modalUser: { fontSize: 22, fontWeight: 'bold' },
+  modalDate: { fontSize: 13, marginTop: 2 },
   closeIcon: {
     backgroundColor: '#FF3B30',
     width: 35,
@@ -417,22 +483,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   exerciseCard: {
-    backgroundColor: '#1E1E1E',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
   },
-  exName: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-
+  exName: { fontSize: 18, fontWeight: 'bold' },
   setTable: { marginTop: 5 },
   tableHeader: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
     paddingBottom: 5,
     marginBottom: 5,
   },
@@ -441,10 +502,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
   },
-  col: { color: '#888', fontSize: 11, fontWeight: 'bold' },
-  cell: { color: 'white', fontSize: 15 },
+  col: { fontSize: 11, fontWeight: 'bold' },
+  cell: { fontSize: 15 },
 });
 
 export default AdminWorkoutDetailScreen;
